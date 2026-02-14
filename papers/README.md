@@ -22,6 +22,7 @@ PDFs in this folder are gitignored (copyright). Download links below.
 
 | Paper | Link | Notes |
 |-------|------|-------|
+| Self-fulfilling Alignment for Animal Compassion | Draft | CaML alignment approach |
 | Animal Harm Benchmark | TBD | AHB methodology |
 
 ---
