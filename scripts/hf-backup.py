@@ -38,7 +38,7 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from huggingface_hub import HfApi, snapshot_download, HfFolder
+    from huggingface_hub import HfApi, snapshot_download, get_token
     from huggingface_hub.utils import RepositoryNotFoundError
     from tqdm import tqdm
 except ImportError:
@@ -386,7 +386,7 @@ Environment:
         sys.exit(1)
 
     # Check for token
-    token = os.environ.get('HF_TOKEN') or HfFolder.get_token()
+    token = os.environ.get('HF_TOKEN') or get_token()
     if not token:
         logger.error("No HuggingFace token found!")
         logger.error("Set HF_TOKEN environment variable or run: huggingface-cli login")
