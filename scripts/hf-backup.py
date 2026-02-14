@@ -111,18 +111,46 @@ class HFBackup:
             logger.error(f"Access verification failed: {e}")
             return False
 
-    def list_source_models(self) -> list:
-        """List all models in source org."""
+    def list_source_models(self, sort_by_size: bool = False) -> list:
+        """List all models in source org, optionally sorted by size (smallest first)."""
         logger.info(f"Listing models in {SOURCE_ORG}...")
         models = list(self.api.list_models(author=SOURCE_ORG))
         logger.info(f"Found {len(models)} models")
+
+        if sort_by_size:
+            logger.info("Sorting by size (smallest first)...")
+            # Get sizes and sort
+            models_with_size = []
+            for model in tqdm(models, desc="Getting sizes", disable=not self.verbose):
+                size = self.get_repo_size(model.id, "model")
+                models_with_size.append((model, size))
+            models_with_size.sort(key=lambda x: x[1])
+            models = [m[0] for m in models_with_size]
+
+            # Log size distribution
+            total_gb = sum(s for _, s in models_with_size) / (1024**3)
+            logger.info(f"Total size: {total_gb:.1f} GB")
+
         return models
 
-    def list_source_datasets(self) -> list:
-        """List all datasets in source org."""
+    def list_source_datasets(self, sort_by_size: bool = False) -> list:
+        """List all datasets in source org, optionally sorted by size (smallest first)."""
         logger.info(f"Listing datasets in {SOURCE_ORG}...")
         datasets = list(self.api.list_datasets(author=SOURCE_ORG))
         logger.info(f"Found {len(datasets)} datasets")
+
+        if sort_by_size:
+            logger.info("Sorting by size (smallest first)...")
+            datasets_with_size = []
+            for dataset in tqdm(datasets, desc="Getting sizes", disable=not self.verbose):
+                size = self.get_repo_size(dataset.id, "dataset")
+                datasets_with_size.append((dataset, size))
+            datasets_with_size.sort(key=lambda x: x[1])
+            datasets = [d[0] for d in datasets_with_size]
+
+            total_mb = sum(s for _, s in datasets_with_size) / (1024**2)
+            logger.info(f"Total size: {total_mb:.1f} MB")
+
         return datasets
 
     def get_repo_size(self, repo_id: str, repo_type: str = "model") -> int:
@@ -329,6 +357,8 @@ Environment:
                         help='Simulate backup without making changes (default: True)')
     parser.add_argument('--no-dry-run', action='store_true',
                         help='Actually perform the backup (disables dry-run)')
+    parser.add_argument('--smallest-first', action='store_true',
+                        help='Sort repos by size, backup smallest first')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
 
@@ -381,14 +411,14 @@ Environment:
         backup.backup_dataset(args.dataset)
 
     elif args.all_models or args.all:
-        models = backup.list_source_models()
+        models = backup.list_source_models(sort_by_size=args.smallest_first)
         logger.info("")
         logger.info("Starting model backup...")
         for model in tqdm(models, desc="Models", disable=args.verbose):
             backup.backup_model(model.id)
 
     if args.all_datasets or args.all:
-        datasets = backup.list_source_datasets()
+        datasets = backup.list_source_datasets(sort_by_size=args.smallest_first)
         logger.info("")
         logger.info("Starting dataset backup...")
         for dataset in tqdm(datasets, desc="Datasets", disable=args.verbose):

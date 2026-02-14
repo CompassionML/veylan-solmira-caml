@@ -43,6 +43,7 @@ python hf-backup.py --no-dry-run --all-models
 |------|-------------|
 | `--dry-run` | Simulate only, no changes (default) |
 | `--no-dry-run` | Actually perform backup |
+| `--smallest-first` | Sort by size, backup smallest repos first |
 | `--all` | Backup all models and datasets |
 | `--all-models` | Backup models only |
 | `--all-datasets` | Backup datasets only |
