@@ -13,10 +13,10 @@ Interpretability-grounded research on compassion in AI systems, including linear
 ```
 caml-research/
 ├── experiments/
-│   ├── linear-probes/    # Compassion detection via linear probes
-│   └── persona-vectors/  # Activation steering for trait expression
-├── strongcompute/        # Compute platform guides
-└── roadmap.md           # Project timeline
+│   ├── linear-probes/       # Compassion detection via linear probes
+│   └── activation-steering/ # Activation steering for trait expression
+├── strongcompute/           # Compute platform guides
+└── roadmap.md              # Project timeline
 ```
 
 ## Experiments
@@ -24,7 +24,7 @@ caml-research/
 | Experiment | Status | Description |
 |------------|--------|-------------|
 | [Linear Probes](experiments/linear-probes/) | Active | Train probes to detect compassion in activations |
-| [Persona Vectors](experiments/persona-vectors/) | Active | CAA-based steering for trait expression |
+| [Activation Steering](experiments/activation-steering/) | On hold | CAA-based steering for trait expression |
 
 ## Quick Links
 
