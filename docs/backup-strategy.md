@@ -38,6 +38,21 @@ Monthly costs for 3TB storage:
 
 ---
 
+## Data Transfer Costs
+
+HuggingFace does **not charge for data transfer** (uploads or downloads). This is a significant advantage over cloud providers:
+
+| Provider | Egress Cost (per GB) | Full 3TB Restore |
+|----------|---------------------|------------------|
+| **HuggingFace** | **$0** | **$0** |
+| AWS S3 | $0.09 | ~$270 |
+| Google Cloud | $0.12 | ~$360 |
+| Backblaze B2 | $0.01 | ~$30 |
+
+This makes the HuggingFace-to-HuggingFace backup strategy (CompassioninMachineLearning → Backup-CaML) **genuinely free** for both storage and transfer.
+
+---
+
 ## SRE Best Practices for ML Assets
 
 ### The 3-2-1 Rule (Adapted for ML)
