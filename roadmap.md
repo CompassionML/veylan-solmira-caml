@@ -38,6 +38,31 @@
 - [x] Create `docs/ahb-reference.md` (AHB dimensions)
 - [x] Create `docs/project-proposal.md` (methodology overview)
 
+### 0.4 HuggingFace Backup Strategy (Research)
+CaML org has significant assets on HuggingFace (197 models, 91 datasets). Need backup plan.
+
+- [ ] Inventory all HF assets
+  - CompassionInMachineLearning: 197 models, 91 datasets
+  - Back-CaML: TBD (private org)
+  - sentientfutures/ahb-validation: request access
+- [ ] Research HuggingFace backup options
+  - [ ] Native HF features (repo mirroring, export)
+  - [ ] HF storage costs (free tier limits?)
+  - [ ] Data retention/deletion policies
+- [ ] Evaluate cloud backup alternatives
+  - [ ] Google Cloud Storage (Jasmine prefers non-Amazon)
+  - [ ] Azure Blob Storage
+  - [ ] Backblaze B2 (budget option)
+  - [ ] Self-hosted (StrongCompute persistent storage?)
+- [ ] Determine best practices for mission-critical ML assets
+  - [ ] 3-2-1 backup rule applicability
+  - [ ] Version control for large model files (DVC, git-lfs)
+  - [ ] Incremental vs full backups for model checkpoints
+- [ ] Cost analysis: HF Pro/Enterprise vs cloud storage
+- [ ] Implement chosen backup strategy
+
+**Context:** Models represent months of training compute. Loss would be significant.
+
 **Resources:**
 - StrongCompute Discord: `isc-help` channel
 - Container: `veylan-initial-2026-01-03` (50GB disk storage, based on NewestCaML)
