@@ -9,21 +9,41 @@
 
 ## Phase 0: Infrastructure (Week 1)
 
-### 0.1 Automate StrongCompute Instance Launches
-- [ ] Document current manual process (container start, SSH, VS Code)
-- [ ] Create launch script for StrongCompute CLI/API
-  - [ ] Research StrongCompute API/CLI capabilities
-  - [ ] Script to start container (`veylan-initial-2026-01-03`)
-  - [ ] Script to check container status
-  - [ ] Script to SSH tunnel setup
-- [ ] Create teardown script (stop container when done)
-- [ ] Document in `strongcompute/README.md`
+### 0.1 StrongCompute Connection Automation
+- [x] Document current manual process (container start, SSH, VS Code)
+- [x] Research StrongCompute API/CLI capabilities
+  - **Finding:** No public API for starting containers — confirmed via Discord `#isc-help`
+  - ISC CLI only works from inside container (`isc container stop/restart`)
+- [x] Create `connect.sh` script with modes:
+  - [x] `--status` - Check VPN + container reachability
+  - [x] Default - Update SSH config + connect with auto-setup
+  - [x] `--vscode` - Open in VSCode Remote SSH
+  - [x] `--no-connect` - Just update SSH config
+- [x] Document in `strongcompute/README.md`
+- [x] Document container environment in `strongcompute/CONTAINER-ENV.md`
+- [x] Verify environment (Llama 3.1 8B loads, ~15GB VRAM, GPU works)
+
+### 0.2 Custom Container Image (Pending)
+- [ ] Build modern Python 3.12 + CUDA 12.4 image
+  - [x] Created `strongcompute/docker/Dockerfile`
+  - [x] Created `strongcompute/docker/requirements.txt`
+  - [x] Created `strongcompute/docker/build.sh`
+  - [ ] Build image (failed locally - disk space; retry on different machine)
+  - [ ] Push to DockerHub
+  - [ ] Import to StrongCompute via Control Plane
+- [x] Document process in `strongcompute/CUSTOM-IMAGES.md`
+
+### 0.3 Documentation
+- [x] Create `docs/models-reference.md` (Llama 3.1 8B/70B specs, SAE resources)
+- [x] Create `docs/ahb-reference.md` (AHB dimensions)
+- [x] Create `docs/project-proposal.md` (methodology overview)
 
 **Resources:**
 - StrongCompute Discord: `isc-help` channel
-- Container: `veylan-initial-2026-01-03` (50GB, based on NewestCaML)
+- Container: `veylan-initial-2026-01-03` (50GB disk storage, based on NewestCaML)
 - Cluster: Sydney Compute Cluster
 - Account: veylan.solmira@gmail.com
+- Model mounted: `/data/uds-grave-seasoned-brownie-251009/` (Llama 3.1 8B)
 
 ---
 

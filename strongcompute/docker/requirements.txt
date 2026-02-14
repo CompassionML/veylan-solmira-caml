@@ -1,0 +1,44 @@
+# CaML Research Requirements
+# For use with Python 3.12, CUDA 12.4, PyTorch 2.5+
+
+# Core ML (PyTorch installed separately for CUDA)
+transformers>=4.45.0
+accelerate>=1.0.0
+safetensors
+datasets
+tokenizers
+sentencepiece
+
+# Interpretability
+transformer-lens
+einops
+fancy-einsum
+jaxtyping
+
+# Linear probes / analysis
+scikit-learn
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+plotly
+
+# Jupyter
+jupyterlab
+ipywidgets
+nbformat
+
+# Development
+black
+ruff
+pytest
+tqdm
+rich
+typer
+
+# HuggingFace CLI
+huggingface_hub[cli]
+
+# Optional: Flash Attention (install separately)
+# flash-attn

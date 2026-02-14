@@ -24,13 +24,13 @@
 Start Wireguard and connect to Sydney cluster VPN.
 
 ```bash
-# Check VPN status
-./scripts/check-status.sh
+# Check status anytime
+./connect.sh --status
 ```
 
 ### 2. Start Container (Web UI)
 
-**Note:** No API/CLI for starting — must use web UI.
+**Note:** No API/CLI for starting containers — confirmed via Discord `#isc-help`. Must use web UI.
 
 1. Go to [Control Plane](https://cp.strongcompute.ai/workstations)
 2. Find `veylan-initial-2026-01-03`
@@ -41,32 +41,62 @@ Start Wireguard and connect to Sydney cluster VPN.
 5. Wait for status → **Running** (green)
 6. Copy the SSH hostname and port shown
 
-### 3. Connect with Helper Script
+### 3. Connect
 
 ```bash
-# Updates SSH config and connects
-./scripts/connect.sh <hostname> <port>
+./connect.sh <hostname> <port>
 
 # Example:
-./scripts/connect.sh 192.168.127.170 47180
+./connect.sh 192.168.127.170 47180
 ```
 
-### 4. Setup Environment (inside container)
-
-```bash
-# Run after connecting
-./scripts/setup-env.sh
-```
+The script will:
+- Check VPN connectivity
+- Update SSH config
+- Test container reachability
+- Connect and auto-setup environment (venv, GPU info)
 
 ---
 
-## Helper Scripts
+## connect.sh Reference
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/check-status.sh` | Check VPN and container reachability |
-| `scripts/connect.sh` | Update SSH config and connect |
-| `scripts/setup-env.sh` | Setup environment inside container |
+Single script for all connection needs.
+
+### Modes
+
+| Command | Description |
+|---------|-------------|
+| `./connect.sh <host> <port>` | Connect to container (default) |
+| `./connect.sh <host> <port> --vscode` | Open in VSCode Remote SSH |
+| `./connect.sh <host> <port> --no-connect` | Just update SSH config |
+| `./connect.sh --status` | Check VPN + container status |
+| `./connect.sh --help` | Show help |
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SSH_KEY` | Path to SSH private key | `~/Desktop/ai_dev/caml/secure/caml` |
+| `SKIP_VPN` | Set to `1` to skip VPN check | `0` |
+
+### Examples
+
+```bash
+# Check if everything is ready
+./connect.sh --status
+
+# Connect to container
+./connect.sh 192.168.127.145 44362
+
+# Open in VSCode instead
+./connect.sh 192.168.127.145 44362 --vscode
+
+# Just update config (for later connection)
+./connect.sh 192.168.127.145 44362 --no-connect
+
+# Then connect manually anytime
+ssh strongcompute
+```
 
 ---
 
@@ -110,13 +140,13 @@ isc container stop --squash
 ## Troubleshooting
 
 ### "Connection refused" or timeout
-- Is VPN connected? (Wireguard must be active)
+- Is VPN connected? (`./connect.sh --status`)
 - Is container running? (Check Control Plane)
-- Did IP/port change? (Update SSH config)
+- Did IP/port change? (Re-run connect.sh with new values)
 
 ### "Permission denied (publickey)"
 - Check SSH key is uploaded to Control Plane
-- Verify `IdentityFile` path in SSH config
+- Verify `SSH_KEY` env var or default path
 
 ### Container won't start
 - Check credits balance in Control Plane
