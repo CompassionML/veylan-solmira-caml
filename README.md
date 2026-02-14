@@ -1,32 +1,35 @@
-# CaML Capstone
+# CaML Research
 
-**Mechanistic Measurement of Compassion in LLMs**
+**Mechanistic Interpretability for Compassion in AI**
 
-ElectricSheep capstone project with Compassion in Machine Learning (CaML).
+Research collaboration with Compassion in Machine Learning (CaML).
 
 ## Overview
 
-Create interpretability-grounded measurements of compassion in AI systems using linear probes, supplementing the output-based Animal Harm Benchmark (AHB).
-
-**Mentor:** Jasmine Brazilek (CaML co-founder)
+Interpretability-grounded research on compassion in AI systems, including linear probes for detection, activation steering via persona vectors, and validation against the Animal Harm Benchmark (AHB).
 
 ## Structure
 
 ```
-caml-capstone/
+caml-research/
 ├── experiments/
-│   └── linear-probes/    # Compassion detection via linear probes
-├── docs/                 # Documentation
-├── data/                 # Datasets, contrastive pairs, trained probes
+│   ├── linear-probes/    # Compassion detection via linear probes
+│   └── persona-vectors/  # Activation steering for trait expression
 ├── strongcompute/        # Compute platform guides
 └── roadmap.md           # Project timeline
 ```
+
+## Experiments
+
+| Experiment | Status | Description |
+|------------|--------|-------------|
+| [Linear Probes](experiments/linear-probes/) | Active | Train probes to detect compassion in activations |
+| [Persona Vectors](experiments/persona-vectors/) | Active | CAA-based steering for trait expression |
 
 ## Quick Links
 
 - [Roadmap](roadmap.md)
 - [StrongCompute Setup](strongcompute/README.md)
-- [Linear Probes Experiment](experiments/linear-probes/)
 
 ## Compute
 
