@@ -23,7 +23,14 @@
 
 Start Wireguard and connect to Sydney cluster VPN.
 
+```bash
+# Check VPN status
+./scripts/check-status.sh
+```
+
 ### 2. Start Container (Web UI)
+
+**Note:** No API/CLI for starting — must use web UI.
 
 1. Go to [Control Plane](https://cp.strongcompute.ai/workstations)
 2. Find `veylan-initial-2026-01-03`
@@ -32,52 +39,34 @@ Start Wireguard and connect to Sydney cluster VPN.
    - **Cluster:** Sydney (or Burst if needed)
    - **GPUs:** As needed (1 for dev, 8 for training)
 5. Wait for status → **Running** (green)
+6. Copy the SSH hostname and port shown
 
-### 3. Get SSH Details
-
-Once running, Control Plane shows SSH connection info:
-```
-ssh -p <PORT> root@<HOSTNAME>
-```
-
-Example:
-```bash
-ssh -p 47180 root@192.168.127.170
-```
-
-### 4. Connect via SSH
+### 3. Connect with Helper Script
 
 ```bash
-# Direct SSH
-ssh -p <PORT> root@<HOSTNAME>
+# Updates SSH config and connects
+./scripts/connect.sh <hostname> <port>
 
-# Or use the alias (after updating ~/.ssh/config)
-ssh strongcompute
+# Example:
+./scripts/connect.sh 192.168.127.170 47180
 ```
 
-### 5. Activate Environment
+### 4. Setup Environment (inside container)
 
 ```bash
-source ~/.venv/bin/activate
+# Run after connecting
+./scripts/setup-env.sh
 ```
 
 ---
 
-## SSH Config (~/.ssh/config)
+## Helper Scripts
 
-Add/update this block with current connection details:
-
-```
-Host strongcompute
-    HostName <HOSTNAME>
-    User root
-    Port <PORT>
-    IdentityFile ~/.ssh/id_rsa
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-```
-
-**Note:** IP/port may change each time you start the container.
+| Script | Purpose |
+|--------|---------|
+| `scripts/check-status.sh` | Check VPN and container reachability |
+| `scripts/connect.sh` | Update SSH config and connect |
+| `scripts/setup-env.sh` | Setup environment inside container |
 
 ---
 
