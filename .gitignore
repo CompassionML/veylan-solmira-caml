@@ -55,6 +55,12 @@ experiments/linear-probes/outputs/probes/*
 .DS_Store
 Thumbs.db
 
+# Credentials (should never be in repo, but just in case)
+.env
+.env.*
+*.secret
+secure/
+
 # Logs
 *.log
 logs/
