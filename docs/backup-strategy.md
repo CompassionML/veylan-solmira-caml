@@ -210,3 +210,118 @@ dvc push  # To configured remote
 | Complexity? | Manual weekly/monthly sync is fine; don't over-automate |
 
 **Key insight:** The risk isn't HuggingFace going down—it's credential compromise or script errors affecting both locations. Isolated credentials for cold backup solve this without complexity.
+
+---
+
+## HuggingFace Native Features (Research)
+
+### What HuggingFace Provides
+
+| Feature | Available? | Notes |
+|---------|------------|-------|
+| **Git versioning** | ✅ Yes | Full commit history, can revert to old versions |
+| **Audit logs** | ✅ Enterprise | Track who did what (detection, not prevention) |
+| **Storage regions** | ✅ Enterprise | Control data location |
+| **Delete protection** | ❌ No | Anyone with write access can delete repos |
+| **Branch protection** | ❌ No | No force-push protection |
+| **Immutable storage** | ❌ No | Unlike S3 Object Lock |
+| **Built-in backup/DR** | ❌ No | Not offered, even in Enterprise |
+
+### What Git Versioning Does and Doesn't Protect
+
+**Protected:**
+- Accidental file overwrites (can recover from commit history)
+- Seeing what changed and when
+- Rolling back to previous model versions
+
+**NOT Protected:**
+- Repo deletion (history deleted with repo)
+- Force push (can rewrite/delete history)
+- Account/credential compromise (attacker has full access)
+- Org admin going rogue
+
+### The Gap
+
+> HuggingFace versioning is like "undo" in a document—helpful for mistakes, useless if someone deletes the document.
+
+This is why a second platform with **different credentials** matters. The question is: how isolated?
+
+---
+
+## State of the Art: ML Asset Backup
+
+From [LakeFS](https://lakefs.io/blog/model-versioning/), [DVC docs](https://doc.dvc.org/use-cases/versioning-data-and-models), and SRE best practices:
+
+### Principle: Treat Models as Immutable Artifacts
+
+```
+Training Run → Model Checkpoint → Immutable Storage → Never Modify
+```
+
+Once a model is trained and validated, it should be:
+1. **Versioned** with full lineage (what data, what code, what hyperparams)
+2. **Stored immutably** (can't be overwritten or deleted)
+3. **Replicated** to separate failure domain
+
+### S3 Object Lock (Gold Standard)
+
+S3 offers true immutability:
+- **Governance mode**: Only users with special permissions can delete
+- **Compliance mode**: NO ONE can delete until retention expires (not even AWS)
+
+```bash
+# Enable Object Lock on bucket
+aws s3api put-object-lock-configuration \
+  --bucket caml-backup \
+  --object-lock-configuration '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","Days":365}}}'
+```
+
+**This is what HuggingFace lacks.** Even with Backup-CaML, an admin can delete everything.
+
+### Two-Platform Strategy (Recommended)
+
+| Platform | Purpose | Protection Level |
+|----------|---------|------------------|
+| HuggingFace (primary) | Development, sharing | Git versioning only |
+| HuggingFace (backup org) | Quick recovery | Same as primary |
+| S3/GCS with Object Lock | Disaster recovery | **Immutable** |
+
+The S3 tier with Object Lock is what makes it "mission critical" grade. Without it, you're trusting that no credential compromise or admin error will ever happen.
+
+---
+
+## Answering Your Question
+
+> "Should mission critical stuff always have at least two platforms with different scripts and/or a manual process?"
+
+**State of the art answer: Yes, and one should be immutable.**
+
+| Level | Setup | Protection |
+|-------|-------|------------|
+| **Basic** | Single HuggingFace org | Git versioning (undo-level) |
+| **Good** | Two HF orgs, separate creds | Credential isolation |
+| **Better** | HF + Cloud, separate creds | Platform redundancy |
+| **Best** | HF + Cloud with Object Lock | **Immutable cold backup** |
+
+For 2-3TB of mission-critical models representing months of compute:
+
+**Recommendation: "Better" minimum, "Best" if budget allows.**
+
+- Backblaze B2 supports Object Lock: ~$18/month
+- S3 with Object Lock: ~$69/month
+- The extra $50/month buys true immutability
+
+---
+
+## Updated Recommendation
+
+```
+CompassioninMachineLearning (primary, read-only for you)
+        ↓ weekly, write token (manual)
+    Backup-CaML (hot backup, you have admin)
+        ↓ monthly, isolated creds (manual)
+    S3/B2 with Object Lock (cold, immutable)
+        └── Can't be deleted even if creds compromised
+```
+
+**The S3 tier with Object Lock is what separates "we have backups" from "we have mission-critical grade backup."**
