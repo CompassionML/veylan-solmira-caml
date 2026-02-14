@@ -38,30 +38,33 @@
 - [x] Create `docs/ahb-reference.md` (AHB dimensions)
 - [x] Create `docs/project-proposal.md` (methodology overview)
 
-### 0.4 HuggingFace Backup Strategy (Research)
-CaML org has significant assets on HuggingFace (197 models, 91 datasets). Need backup plan.
+### 0.4 HuggingFace Backup Strategy
+CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB). Need backup plan.
 
-- [ ] Inventory all HF assets
-  - CompassionInMachineLearning: 197 models, 91 datasets
-  - Back-CaML: TBD (private org)
-  - sentientfutures/ahb-validation: request access
-- [ ] Research HuggingFace backup options
-  - [ ] Native HF features (repo mirroring, export)
-  - [ ] HF storage costs (free tier limits?)
-  - [ ] Data retention/deletion policies
-- [ ] Evaluate cloud backup alternatives
-  - [ ] Google Cloud Storage (Jasmine prefers non-Amazon)
-  - [ ] Azure Blob Storage
-  - [ ] Backblaze B2 (budget option)
-  - [ ] Self-hosted (StrongCompute persistent storage?)
-- [ ] Determine best practices for mission-critical ML assets
-  - [ ] 3-2-1 backup rule applicability
-  - [ ] Version control for large model files (DVC, git-lfs)
-  - [ ] Incremental vs full backups for model checkpoints
-- [ ] Cost analysis: HF Pro/Enterprise vs cloud storage
-- [ ] Implement chosen backup strategy
+- [x] Inventory all HF assets
+  - CompassioninMachineLearning: 197 models, 96 datasets (~2.9TB)
+  - Backup-CaML: backup destination (admin access)
+- [x] Research HuggingFace backup options
+  - [x] Native HF features: Git versioning only, no delete protection, no immutability
+  - [x] HF storage/transfer costs: **Free** (no egress fees)
+  - [x] No server-side copy API — must download/upload
+- [x] Evaluate cloud backup alternatives
+  - [x] Backblaze B2: $18/mo for 3TB, **supports Object Lock** (immutable)
+  - [x] AWS S3 Glacier: $3/mo but $270 egress for full restore
+  - [x] Recommendation: HF→HF for hot backup, B2 for cold/immutable
+- [x] Determine best practices for mission-critical ML assets
+  - [x] 3-2-1 rule: Primary (HF) → Hot backup (HF) → Cold (B2 with Object Lock)
+  - [x] Credential isolation is key security control
+  - [x] Documented in `docs/backup-strategy.md`
+- [x] Create backup script (`scripts/hf-backup.py`)
+  - [x] Dry-run by default, incremental, smallest-first sorting
+  - [x] Supports hf_xet for faster transfers
+  - [x] Tested successfully (17 models backed up)
+- [ ] Complete backup to Backup-CaML (~180 models remaining)
+  - [ ] Run on StrongCompute (faster network, no local disk use)
+- [ ] (Optional) Set up Backblaze B2 cold backup with Object Lock
 
-**Context:** Models represent months of training compute. Loss would be significant.
+**Decision:** Jasmine prefers free HF-only backup for now. B2 cold backup deferred.
 
 **Resources:**
 - StrongCompute Discord: `isc-help` channel
