@@ -63,7 +63,8 @@ python hf-backup.py --no-dry-run --all-models
 ### Time Estimates
 
 - ~197 models × ~15GB = ~3TB
-- Download + upload at ~100MB/s = ~8-10 hours for full backup
+- Observed speed: ~3-6 MB/s (download + upload combined)
+- Full backup: **3-5 days** (can run in background, restartable)
 - Incremental (only new models) = much faster
 
 ### Credentials
