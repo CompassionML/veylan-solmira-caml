@@ -129,6 +129,70 @@ def steering_hook(module, input, output):
 
 ---
 
+## Researcher Experiences (Informal)
+
+Independent researchers working on activation steering have reported consistent patterns:
+
+### Methodology That Achieves Strong Detection But Fails at Steering
+
+**Approach used:**
+- Contrastive pairs constructed to be semantically close but factually different
+- Same question, correct answer vs. common misconception
+- Hundreds to low thousands of pairs
+- Mean-difference direction in hidden space, computed per layer
+
+**Reference implementation:**
+```python
+import torch
+import torch.nn.functional as F
+
+class ContrastiveDirection:
+    def __init__(self):
+        self.direction = None
+
+    def fit(self, factual_h, halluc_h):
+        """
+        factual_h: [N_f, d] hidden states from factual answers
+        halluc_h: [N_h, d] hidden states from hallucinated answers
+        """
+        mean_fact = factual_h.mean(dim=0)
+        mean_hall = halluc_h.mean(dim=0)
+        v = mean_fact - mean_hall
+        self.direction = F.normalize(v, dim=0)
+
+    @torch.no_grad()
+    def score(self, h):
+        """h: [d] or [B, d], returns projection score(s)"""
+        return h @ self.direction
+```
+
+**Results:**
+- Detection: Strong, consistent layer selection
+- Steering: "Doesn't meaningfully respond" even with larger models
+- Larger models (70B) show stronger signals but same steering failure
+
+### Key Insight
+
+> "The contrastive direction appears diagnostic rather than causal for generation."
+
+### Alternative Approaches Suggested
+
+When global hidden-state steering fails, researchers have suggested:
+- **Early-token nudging** — intervene only at generation start
+- **Logit-level tweaks** — modify output distribution directly
+- **Tiny learned controllers** — small networks that learn intervention
+- **Probing without steering** — accept detection value alone
+
+### Field Consensus
+
+Multiple independent researchers report:
+- Steering works only under "very precise conditions"
+- These conditions are often impractical for real applications
+- Detection/probing is more reliable and better-respected
+- Recommendation: Use tools that are well-established in the field
+
+---
+
 ## The Detection-Steering Gap
 
 ### Why Detection Works
