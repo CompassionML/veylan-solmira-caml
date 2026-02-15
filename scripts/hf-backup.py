@@ -50,13 +50,22 @@ except ImportError:
 SOURCE_ORG = "CompassioninMachineLearning"
 BACKUP_ORG = "Backup-CaML"
 
-# Logging setup
+# Logging setup with timestamped file
+LOG_DIR = Path(__file__).parent.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / f"backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),  # Console output
+        logging.FileHandler(LOG_FILE),  # Timestamped file
+    ]
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Logging to: {LOG_FILE}")
 
 
 class HFBackup:
@@ -223,7 +232,7 @@ class HFBackup:
                     repo_id=backup_id,
                     repo_type="model",
                     exist_ok=True,
-                    private=True,  # Keep backups private
+                    private=False,  # Public to avoid 100GB storage limit
                 )
 
                 # Upload to backup
@@ -287,7 +296,7 @@ class HFBackup:
                     repo_id=backup_id,
                     repo_type="dataset",
                     exist_ok=True,
-                    private=True,
+                    private=False,  # Public to avoid 100GB storage limit
                 )
 
                 # Upload to backup
