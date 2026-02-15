@@ -176,17 +176,35 @@ class HFBackup:
         except Exception:
             return 0
 
-    def backup_exists(self, repo_name: str, repo_type: str = "model") -> bool:
-        """Check if backup already exists in backup org."""
-        backup_id = f"{BACKUP_ORG}/{repo_name}"
+    def get_repo_files(self, repo_id: str, repo_type: str = "model") -> dict:
+        """Get dict of {filename: size} for a repo, or None if not found."""
         try:
             if repo_type == "model":
-                self.api.model_info(backup_id)
+                info = self.api.model_info(repo_id, files_metadata=True)
             else:
-                self.api.dataset_info(backup_id)
-            return True
+                info = self.api.dataset_info(repo_id, files_metadata=True)
+            if info.siblings:
+                return {f.rfilename: f.size for f in info.siblings}
+            return {}
         except RepositoryNotFoundError:
-            return False
+            return None
+        except Exception:
+            return None
+
+    def backup_matches_source(self, source_id: str, repo_name: str, repo_type: str = "model") -> tuple:
+        """Check if backup exists and matches source. Returns (exists, matches, source_files)."""
+        backup_id = f"{BACKUP_ORG}/{repo_name}"
+
+        source_files = self.get_repo_files(source_id, repo_type)
+        if source_files is None:
+            return (False, False, None)
+
+        backup_files = self.get_repo_files(backup_id, repo_type)
+        if backup_files is None:
+            return (False, False, source_files)
+
+        matches = (backup_files == source_files)
+        return (True, matches, source_files)
 
     def backup_model(self, model_id: str) -> bool:
         """Backup a single model to the backup org."""
@@ -195,14 +213,21 @@ class HFBackup:
 
         self.stats['models_checked'] += 1
 
-        # Check if already backed up
-        if self.backup_exists(model_name, "model"):
-            logger.info(f"  ⏭️  {model_name}: Already exists in backup org, skipping")
+        # Check if already backed up AND matches source
+        exists, matches, source_files = self.backup_matches_source(model_id, model_name, "model")
+        needs_clean_sync = False
+
+        if exists and matches:
+            size_gb = sum(source_files.values()) / (1024**3) if source_files else 0
+            logger.info(f"  ⏭️  {model_name}: Already backed up correctly ({size_gb:.1f} GB)")
             self.stats['models_skipped'] += 1
             return True
+        elif exists and not matches:
+            logger.info(f"  ⚠️  {model_name}: Backup mismatched, will clean sync...")
+            needs_clean_sync = True
 
         # Get size for logging
-        size_bytes = self.get_repo_size(model_id, "model")
+        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(model_id, "model")
         size_gb = size_bytes / (1024**3)
 
         logger.info(f"  📦 {model_name}: {size_gb:.1f} GB")
@@ -210,6 +235,8 @@ class HFBackup:
         if self.dry_run:
             logger.info(f"     [DRY RUN] Would download from {model_id}")
             logger.info(f"     [DRY RUN] Would upload to {backup_id}")
+            if needs_clean_sync:
+                logger.info(f"     [DRY RUN] Would clean sync (delete_patterns='*')")
             self.stats['models_backed_up'] += 1
             return True
 
@@ -235,17 +262,33 @@ class HFBackup:
                     private=False,  # Public to avoid 100GB storage limit
                 )
 
-                # Upload to backup
-                logger.info(f"     Uploading to {backup_id}...")
-                self.api.upload_folder(
-                    folder_path=str(local_path),
-                    repo_id=backup_id,
-                    repo_type="model",
-                )
+                # Upload to backup - use delete_patterns for clean sync if mismatched
+                if needs_clean_sync:
+                    logger.info(f"     Clean sync to {backup_id} (deleting old files)...")
+                    self.api.upload_folder(
+                        folder_path=str(local_path),
+                        repo_id=backup_id,
+                        repo_type="model",
+                        delete_patterns="*",  # Delete all existing files for clean sync
+                    )
+                else:
+                    logger.info(f"     Uploading to {backup_id}...")
+                    self.api.upload_folder(
+                        folder_path=str(local_path),
+                        repo_id=backup_id,
+                        repo_type="model",
+                    )
 
-                logger.info(f"  ✅ {model_name}: Backup complete")
-                self.stats['models_backed_up'] += 1
-                return True
+                # Verify upload matches source
+                new_backup_files = self.get_repo_files(backup_id, "model")
+                if new_backup_files == source_files:
+                    logger.info(f"  ✅ {model_name}: Backup complete and verified")
+                    self.stats['models_backed_up'] += 1
+                    return True
+                else:
+                    logger.warning(f"  ⚠️  {model_name}: Upload completed but verification failed")
+                    self.stats['models_failed'] += 1
+                    return False
 
         except Exception as e:
             logger.error(f"  ❌ {model_name}: Backup failed - {e}")
@@ -259,14 +302,21 @@ class HFBackup:
 
         self.stats['datasets_checked'] += 1
 
-        # Check if already backed up
-        if self.backup_exists(dataset_name, "dataset"):
-            logger.info(f"  ⏭️  {dataset_name}: Already exists in backup org, skipping")
+        # Check if already backed up AND matches source
+        exists, matches, source_files = self.backup_matches_source(dataset_id, dataset_name, "dataset")
+        needs_clean_sync = False
+
+        if exists and matches:
+            size_mb = sum(source_files.values()) / (1024**2) if source_files else 0
+            logger.info(f"  ⏭️  {dataset_name}: Already backed up correctly ({size_mb:.1f} MB)")
             self.stats['datasets_skipped'] += 1
             return True
+        elif exists and not matches:
+            logger.info(f"  ⚠️  {dataset_name}: Backup mismatched, will clean sync...")
+            needs_clean_sync = True
 
         # Get size for logging
-        size_bytes = self.get_repo_size(dataset_id, "dataset")
+        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(dataset_id, "dataset")
         size_mb = size_bytes / (1024**2)
 
         logger.info(f"  📦 {dataset_name}: {size_mb:.1f} MB")
@@ -274,6 +324,8 @@ class HFBackup:
         if self.dry_run:
             logger.info(f"     [DRY RUN] Would download from {dataset_id}")
             logger.info(f"     [DRY RUN] Would upload to {backup_id}")
+            if needs_clean_sync:
+                logger.info(f"     [DRY RUN] Would clean sync (delete_patterns='*')")
             self.stats['datasets_backed_up'] += 1
             return True
 
@@ -299,17 +351,33 @@ class HFBackup:
                     private=False,  # Public to avoid 100GB storage limit
                 )
 
-                # Upload to backup
-                logger.info(f"     Uploading to {backup_id}...")
-                self.api.upload_folder(
-                    folder_path=str(local_path),
-                    repo_id=backup_id,
-                    repo_type="dataset",
-                )
+                # Upload to backup - use delete_patterns for clean sync if mismatched
+                if needs_clean_sync:
+                    logger.info(f"     Clean sync to {backup_id} (deleting old files)...")
+                    self.api.upload_folder(
+                        folder_path=str(local_path),
+                        repo_id=backup_id,
+                        repo_type="dataset",
+                        delete_patterns="*",  # Delete all existing files for clean sync
+                    )
+                else:
+                    logger.info(f"     Uploading to {backup_id}...")
+                    self.api.upload_folder(
+                        folder_path=str(local_path),
+                        repo_id=backup_id,
+                        repo_type="dataset",
+                    )
 
-                logger.info(f"  ✅ {dataset_name}: Backup complete")
-                self.stats['datasets_backed_up'] += 1
-                return True
+                # Verify upload matches source
+                new_backup_files = self.get_repo_files(backup_id, "dataset")
+                if new_backup_files == source_files:
+                    logger.info(f"  ✅ {dataset_name}: Backup complete and verified")
+                    self.stats['datasets_backed_up'] += 1
+                    return True
+                else:
+                    logger.warning(f"  ⚠️  {dataset_name}: Upload completed but verification failed")
+                    self.stats['datasets_failed'] += 1
+                    return False
 
         except Exception as e:
             logger.error(f"  ❌ {dataset_name}: Backup failed - {e}")
