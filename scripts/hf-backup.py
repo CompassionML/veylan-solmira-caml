@@ -2,7 +2,7 @@
 """
 HuggingFace Organization Backup Script
 
-Backs up models and datasets from CompassioninMachineLearning to Backup-CaML.
+Backs up models, datasets, and spaces from CompassioninMachineLearning to Backup-CaML.
 
 SAFETY FEATURES:
 - Dry-run mode by default (must explicitly enable writes)
@@ -20,6 +20,9 @@ Usage:
 
     # Backup all models (after testing)
     python hf-backup.py --all-models
+
+    # Backup everything sorted by size (smallest first)
+    python hf-backup.py --all-by-size
 
     # Backup everything
     python hf-backup.py --all
@@ -49,6 +52,42 @@ except ImportError:
 # Configuration
 SOURCE_ORG = "CompassioninMachineLearning"
 BACKUP_ORG = "Backup-CaML"
+
+# Temp directory selection - prefer high-capacity mounts if available
+LARGE_STORAGE_PATHS = ["/shared", "/mnt/data", "/data"]  # Common large storage mounts
+TEMP_DIR = None
+for path in LARGE_STORAGE_PATHS:
+    if os.path.exists(path) and os.access(path, os.W_OK):
+        TEMP_DIR = os.path.join(path, "hf-backup-tmp")
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        break
+
+
+def cleanup_old_temp_dirs():
+    """Clean up old temp directories from previous failed runs."""
+    import glob
+    cleaned = 0
+    # Clean system temp
+    for pattern in ["/tmp/tmp*", "/var/tmp/tmp*"]:
+        for path in glob.glob(pattern):
+            if os.path.isdir(path):
+                try:
+                    shutil.rmtree(path)
+                    cleaned += 1
+                except Exception:
+                    pass
+    # Clean our custom temp dir if it exists
+    if TEMP_DIR and os.path.exists(TEMP_DIR):
+        for item in os.listdir(TEMP_DIR):
+            item_path = os.path.join(TEMP_DIR, item)
+            if os.path.isdir(item_path):
+                try:
+                    shutil.rmtree(item_path)
+                    cleaned += 1
+                except Exception:
+                    pass
+    return cleaned
+
 
 # Logging setup with timestamped file
 LOG_DIR = Path(__file__).parent.parent / "logs"
@@ -82,6 +121,10 @@ class HFBackup:
             'datasets_backed_up': 0,
             'datasets_skipped': 0,
             'datasets_failed': 0,
+            'spaces_checked': 0,
+            'spaces_backed_up': 0,
+            'spaces_skipped': 0,
+            'spaces_failed': 0,
         }
 
         if dry_run:
@@ -162,13 +205,83 @@ class HFBackup:
 
         return datasets
 
+    def list_source_spaces(self, sort_by_size: bool = False) -> list:
+        """List all spaces in source org, optionally sorted by size (smallest first)."""
+        logger.info(f"Listing spaces in {SOURCE_ORG}...")
+        spaces = list(self.api.list_spaces(author=SOURCE_ORG))
+        logger.info(f"Found {len(spaces)} spaces")
+
+        if sort_by_size:
+            logger.info("Sorting by size (smallest first)...")
+            spaces_with_size = []
+            for space in tqdm(spaces, desc="Getting sizes", disable=not self.verbose):
+                size = self.get_repo_size(space.id, "space")
+                spaces_with_size.append((space, size))
+            spaces_with_size.sort(key=lambda x: x[1])
+            spaces = [s[0] for s in spaces_with_size]
+
+            total_mb = sum(s for _, s in spaces_with_size) / (1024**2)
+            logger.info(f"Total size: {total_mb:.1f} MB")
+
+        return spaces
+
+    def list_all_repos_by_size(self) -> list:
+        """List all models, datasets, and spaces combined, sorted by size (smallest first).
+
+        Returns list of tuples: (repo_id, repo_type, size_bytes)
+        """
+        logger.info(f"Listing all repos in {SOURCE_ORG}...")
+
+        # Get models
+        models = list(self.api.list_models(author=SOURCE_ORG))
+        logger.info(f"Found {len(models)} models")
+
+        # Get datasets
+        datasets = list(self.api.list_datasets(author=SOURCE_ORG))
+        logger.info(f"Found {len(datasets)} datasets")
+
+        # Get spaces
+        spaces = list(self.api.list_spaces(author=SOURCE_ORG))
+        logger.info(f"Found {len(spaces)} spaces")
+
+        # Combine and get sizes
+        all_repos = []
+        logger.info("Getting sizes for all repos...")
+
+        for model in tqdm(models, desc="Models", disable=not self.verbose):
+            size = self.get_repo_size(model.id, "model")
+            all_repos.append((model.id, "model", size))
+
+        for dataset in tqdm(datasets, desc="Datasets", disable=not self.verbose):
+            size = self.get_repo_size(dataset.id, "dataset")
+            all_repos.append((dataset.id, "dataset", size))
+
+        for space in tqdm(spaces, desc="Spaces", disable=not self.verbose):
+            size = self.get_repo_size(space.id, "space")
+            all_repos.append((space.id, "space", size))
+
+        # Sort by size (smallest first)
+        all_repos.sort(key=lambda x: x[2])
+
+        # Log summary
+        total_bytes = sum(r[2] for r in all_repos)
+        total_gb = total_bytes / (1024**3)
+        num_models = len(models)
+        num_datasets = len(datasets)
+        num_spaces = len(spaces)
+        logger.info(f"Total: {len(all_repos)} repos ({num_models} models, {num_datasets} datasets, {num_spaces} spaces), {total_gb:.1f} GB")
+
+        return all_repos
+
     def get_repo_size(self, repo_id: str, repo_type: str = "model") -> int:
         """Get total size of a repository in bytes."""
         try:
             if repo_type == "model":
                 info = self.api.model_info(repo_id, files_metadata=True)
-            else:
+            elif repo_type == "dataset":
                 info = self.api.dataset_info(repo_id, files_metadata=True)
+            else:  # space
+                info = self.api.space_info(repo_id, files_metadata=True)
 
             if info.siblings:
                 return sum(f.size for f in info.siblings if f.size)
@@ -181,8 +294,10 @@ class HFBackup:
         try:
             if repo_type == "model":
                 info = self.api.model_info(repo_id, files_metadata=True)
-            else:
+            elif repo_type == "dataset":
                 info = self.api.dataset_info(repo_id, files_metadata=True)
+            else:  # space
+                info = self.api.space_info(repo_id, files_metadata=True)
             if info.siblings:
                 return {f.rfilename: f.size for f in info.siblings}
             return {}
@@ -206,58 +321,75 @@ class HFBackup:
         matches = (backup_files == source_files)
         return (True, matches, source_files)
 
-    def backup_model(self, model_id: str) -> bool:
-        """Backup a single model to the backup org."""
-        model_name = model_id.split('/')[-1]
-        backup_id = f"{BACKUP_ORG}/{model_name}"
+    def backup_repo(self, repo_id: str, repo_type: str = "model") -> bool:
+        """Backup a single repo (model or dataset) to the backup org."""
+        repo_name = repo_id.split('/')[-1]
+        backup_id = f"{BACKUP_ORG}/{repo_name}"
 
-        self.stats['models_checked'] += 1
+        # Update stats
+        if repo_type == "model":
+            self.stats['models_checked'] += 1
+        elif repo_type == "dataset":
+            self.stats['datasets_checked'] += 1
+        else:  # space
+            self.stats['spaces_checked'] += 1
 
         # Check if already backed up AND matches source
-        exists, matches, source_files = self.backup_matches_source(model_id, model_name, "model")
+        exists, matches, source_files = self.backup_matches_source(repo_id, repo_name, repo_type)
         needs_clean_sync = False
 
         if exists and matches:
-            size_gb = sum(source_files.values()) / (1024**3) if source_files else 0
-            logger.info(f"  ⏭️  {model_name}: Already backed up correctly ({size_gb:.1f} GB)")
-            self.stats['models_skipped'] += 1
+            size_bytes = sum(source_files.values()) if source_files else 0
+            size_str = f"{size_bytes / (1024**3):.1f} GB" if size_bytes > 1024**3 else f"{size_bytes / (1024**2):.1f} MB"
+            logger.info(f"  ⏭️  [{repo_type}] {repo_name}: Already backed up correctly ({size_str})")
+            if repo_type == "model":
+                self.stats['models_skipped'] += 1
+            elif repo_type == "dataset":
+                self.stats['datasets_skipped'] += 1
+            else:  # space
+                self.stats['spaces_skipped'] += 1
             return True
         elif exists and not matches:
-            logger.info(f"  ⚠️  {model_name}: Backup mismatched, will clean sync...")
+            logger.info(f"  ⚠️  [{repo_type}] {repo_name}: Backup mismatched, will clean sync...")
             needs_clean_sync = True
 
         # Get size for logging
-        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(model_id, "model")
-        size_gb = size_bytes / (1024**3)
+        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(repo_id, repo_type)
+        size_str = f"{size_bytes / (1024**3):.1f} GB" if size_bytes > 1024**3 else f"{size_bytes / (1024**2):.1f} MB"
 
-        logger.info(f"  📦 {model_name}: {size_gb:.1f} GB")
+        logger.info(f"  📦 [{repo_type}] {repo_name}: {size_str}")
 
         if self.dry_run:
-            logger.info(f"     [DRY RUN] Would download from {model_id}")
+            logger.info(f"     [DRY RUN] Would download from {repo_id}")
             logger.info(f"     [DRY RUN] Would upload to {backup_id}")
             if needs_clean_sync:
                 logger.info(f"     [DRY RUN] Would clean sync (delete_patterns='*')")
-            self.stats['models_backed_up'] += 1
+            if repo_type == "model":
+                self.stats['models_backed_up'] += 1
+            elif repo_type == "dataset":
+                self.stats['datasets_backed_up'] += 1
+            else:  # space
+                self.stats['spaces_backed_up'] += 1
             return True
 
         # Actually perform the backup
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                local_path = Path(tmpdir) / model_name
+            with tempfile.TemporaryDirectory(dir=TEMP_DIR) as tmpdir:
+                local_path = Path(tmpdir) / repo_name
 
                 # Download from source
-                logger.info(f"     Downloading from {model_id}...")
+                logger.info(f"     Downloading from {repo_id}...")
                 snapshot_download(
-                    repo_id=model_id,
+                    repo_id=repo_id,
                     local_dir=str(local_path),
-                    repo_type="model",
+                    repo_type=repo_type,
                 )
 
                 # Create backup repo
                 logger.info(f"     Creating backup repo {backup_id}...")
                 self.api.create_repo(
                     repo_id=backup_id,
-                    repo_type="model",
+                    repo_type=repo_type,
                     exist_ok=True,
                     private=False,  # Public to avoid 100GB storage limit
                 )
@@ -268,7 +400,7 @@ class HFBackup:
                     self.api.upload_folder(
                         folder_path=str(local_path),
                         repo_id=backup_id,
-                        repo_type="model",
+                        repo_type=repo_type,
                         delete_patterns="*",  # Delete all existing files for clean sync
                     )
                 else:
@@ -276,113 +408,51 @@ class HFBackup:
                     self.api.upload_folder(
                         folder_path=str(local_path),
                         repo_id=backup_id,
-                        repo_type="model",
+                        repo_type=repo_type,
                     )
 
                 # Verify upload matches source
-                new_backup_files = self.get_repo_files(backup_id, "model")
+                new_backup_files = self.get_repo_files(backup_id, repo_type)
                 if new_backup_files == source_files:
-                    logger.info(f"  ✅ {model_name}: Backup complete and verified")
-                    self.stats['models_backed_up'] += 1
+                    logger.info(f"  ✅ [{repo_type}] {repo_name}: Backup complete and verified")
+                    if repo_type == "model":
+                        self.stats['models_backed_up'] += 1
+                    elif repo_type == "dataset":
+                        self.stats['datasets_backed_up'] += 1
+                    else:  # space
+                        self.stats['spaces_backed_up'] += 1
                     return True
                 else:
-                    logger.warning(f"  ⚠️  {model_name}: Upload completed but verification failed")
-                    self.stats['models_failed'] += 1
+                    logger.warning(f"  ⚠️  [{repo_type}] {repo_name}: Upload completed but verification failed")
+                    if repo_type == "model":
+                        self.stats['models_failed'] += 1
+                    elif repo_type == "dataset":
+                        self.stats['datasets_failed'] += 1
+                    else:  # space
+                        self.stats['spaces_failed'] += 1
                     return False
 
         except Exception as e:
-            logger.error(f"  ❌ {model_name}: Backup failed - {e}")
-            self.stats['models_failed'] += 1
+            logger.error(f"  ❌ [{repo_type}] {repo_name}: Backup failed - {e}")
+            if repo_type == "model":
+                self.stats['models_failed'] += 1
+            elif repo_type == "dataset":
+                self.stats['datasets_failed'] += 1
+            else:  # space
+                self.stats['spaces_failed'] += 1
             return False
+
+    def backup_model(self, model_id: str) -> bool:
+        """Backup a single model to the backup org."""
+        return self.backup_repo(model_id, "model")
 
     def backup_dataset(self, dataset_id: str) -> bool:
         """Backup a single dataset to the backup org."""
-        dataset_name = dataset_id.split('/')[-1]
-        backup_id = f"{BACKUP_ORG}/{dataset_name}"
+        return self.backup_repo(dataset_id, "dataset")
 
-        self.stats['datasets_checked'] += 1
-
-        # Check if already backed up AND matches source
-        exists, matches, source_files = self.backup_matches_source(dataset_id, dataset_name, "dataset")
-        needs_clean_sync = False
-
-        if exists and matches:
-            size_mb = sum(source_files.values()) / (1024**2) if source_files else 0
-            logger.info(f"  ⏭️  {dataset_name}: Already backed up correctly ({size_mb:.1f} MB)")
-            self.stats['datasets_skipped'] += 1
-            return True
-        elif exists and not matches:
-            logger.info(f"  ⚠️  {dataset_name}: Backup mismatched, will clean sync...")
-            needs_clean_sync = True
-
-        # Get size for logging
-        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(dataset_id, "dataset")
-        size_mb = size_bytes / (1024**2)
-
-        logger.info(f"  📦 {dataset_name}: {size_mb:.1f} MB")
-
-        if self.dry_run:
-            logger.info(f"     [DRY RUN] Would download from {dataset_id}")
-            logger.info(f"     [DRY RUN] Would upload to {backup_id}")
-            if needs_clean_sync:
-                logger.info(f"     [DRY RUN] Would clean sync (delete_patterns='*')")
-            self.stats['datasets_backed_up'] += 1
-            return True
-
-        # Actually perform the backup
-        try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                local_path = Path(tmpdir) / dataset_name
-
-                # Download from source
-                logger.info(f"     Downloading from {dataset_id}...")
-                snapshot_download(
-                    repo_id=dataset_id,
-                    local_dir=str(local_path),
-                    repo_type="dataset",
-                )
-
-                # Create backup repo
-                logger.info(f"     Creating backup repo {backup_id}...")
-                self.api.create_repo(
-                    repo_id=backup_id,
-                    repo_type="dataset",
-                    exist_ok=True,
-                    private=False,  # Public to avoid 100GB storage limit
-                )
-
-                # Upload to backup - use delete_patterns for clean sync if mismatched
-                if needs_clean_sync:
-                    logger.info(f"     Clean sync to {backup_id} (deleting old files)...")
-                    self.api.upload_folder(
-                        folder_path=str(local_path),
-                        repo_id=backup_id,
-                        repo_type="dataset",
-                        delete_patterns="*",  # Delete all existing files for clean sync
-                    )
-                else:
-                    logger.info(f"     Uploading to {backup_id}...")
-                    self.api.upload_folder(
-                        folder_path=str(local_path),
-                        repo_id=backup_id,
-                        repo_type="dataset",
-                    )
-
-                # Verify upload matches source
-                new_backup_files = self.get_repo_files(backup_id, "dataset")
-                if new_backup_files == source_files:
-                    logger.info(f"  ✅ {dataset_name}: Backup complete and verified")
-                    self.stats['datasets_backed_up'] += 1
-                    return True
-                else:
-                    logger.warning(f"  ⚠️  {dataset_name}: Upload completed but verification failed")
-                    self.stats['datasets_failed'] += 1
-                    return False
-
-        except Exception as e:
-            logger.error(f"  ❌ {dataset_name}: Backup failed - {e}")
-            self.stats['datasets_failed'] += 1
-            return False
+    def backup_space(self, space_id: str) -> bool:
+        """Backup a single space to the backup org."""
+        return self.backup_repo(space_id, "space")
 
     def print_summary(self):
         """Print backup summary."""
@@ -399,6 +469,11 @@ class HFBackup:
         logger.info(f"Datasets backed up:{self.stats['datasets_backed_up']}")
         logger.info(f"Datasets skipped:  {self.stats['datasets_skipped']} (already exist)")
         logger.info(f"Datasets failed:   {self.stats['datasets_failed']}")
+        logger.info("")
+        logger.info(f"Spaces checked:    {self.stats['spaces_checked']}")
+        logger.info(f"Spaces backed up:  {self.stats['spaces_backed_up']}")
+        logger.info(f"Spaces skipped:    {self.stats['spaces_skipped']} (already exist)")
+        logger.info(f"Spaces failed:     {self.stats['spaces_failed']}")
         logger.info("=" * 60)
 
         if self.dry_run:
@@ -408,7 +483,7 @@ class HFBackup:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Backup HuggingFace org models and datasets",
+        description="Backup HuggingFace org models, datasets, and spaces",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -420,6 +495,9 @@ Examples:
 
   # Backup all models (after testing)
   python hf-backup.py --all-models
+
+  # Backup everything sorted by size (smallest first) - RECOMMENDED
+  python hf-backup.py --all-by-size --no-dry-run
 
   # Backup everything
   python hf-backup.py --all
@@ -443,23 +521,40 @@ Environment:
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--all', action='store_true',
                        help='Backup all models and datasets')
+    group.add_argument('--all-by-size', action='store_true',
+                       help='Backup all models and datasets, sorted by size (smallest first)')
     group.add_argument('--all-models', action='store_true',
                        help='Backup all models only')
     group.add_argument('--all-datasets', action='store_true',
                        help='Backup all datasets only')
+    group.add_argument('--all-spaces', action='store_true',
+                       help='Backup all spaces only')
     group.add_argument('--model', type=str,
                        help='Backup specific model (full repo ID)')
     group.add_argument('--dataset', type=str,
                        help='Backup specific dataset (full repo ID)')
+    group.add_argument('--space', type=str,
+                       help='Backup specific space (full repo ID)')
 
     args = parser.parse_args()
 
     # Handle dry-run logic
     dry_run = not args.no_dry_run
 
-    if not any([args.all, args.all_models, args.all_datasets, args.model, args.dataset]):
+    # Clean up old temp files from previous runs
+    cleaned = cleanup_old_temp_dirs()
+    if cleaned > 0:
+        logger.info(f"Cleaned up {cleaned} old temp directories")
+
+    # Log temp directory location
+    if TEMP_DIR:
+        logger.info(f"Using temp directory: {TEMP_DIR}")
+    else:
+        logger.info("Using system default temp directory")
+
+    if not any([args.all, args.all_by_size, args.all_models, args.all_datasets, args.all_spaces, args.model, args.dataset, args.space]):
         parser.print_help()
-        print("\n⚠️  No backup target specified. Use --all, --all-models, --model, etc.")
+        print("\n⚠️  No backup target specified. Use --all, --all-by-size, --all-models, --model, etc.")
         sys.exit(1)
 
     # Check for token
@@ -487,6 +582,18 @@ Environment:
         logger.info(f"Backing up single dataset: {args.dataset}")
         backup.backup_dataset(args.dataset)
 
+    elif args.space:
+        logger.info(f"Backing up single space: {args.space}")
+        backup.backup_space(args.space)
+
+    elif args.all_by_size:
+        # Combined sorted backup - all repos by size
+        all_repos = backup.list_all_repos_by_size()
+        logger.info("")
+        logger.info("Starting backup (sorted by size, smallest first)...")
+        for repo_id, repo_type, size_bytes in tqdm(all_repos, desc="Repos", disable=args.verbose):
+            backup.backup_repo(repo_id, repo_type)
+
     elif args.all_models or args.all:
         models = backup.list_source_models(sort_by_size=args.smallest_first)
         logger.info("")
@@ -500,6 +607,13 @@ Environment:
         logger.info("Starting dataset backup...")
         for dataset in tqdm(datasets, desc="Datasets", disable=args.verbose):
             backup.backup_dataset(dataset.id)
+
+    if args.all_spaces or args.all:
+        spaces = backup.list_source_spaces(sort_by_size=args.smallest_first)
+        logger.info("")
+        logger.info("Starting space backup...")
+        for space in tqdm(spaces, desc="Spaces", disable=args.verbose):
+            backup.backup_space(space.id)
 
     # Print summary
     backup.print_summary()
