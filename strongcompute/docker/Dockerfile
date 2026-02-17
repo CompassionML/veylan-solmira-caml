@@ -1,8 +1,8 @@
 # CaML Research Environment
 # Target: Llama 3.1 8B/70B linear probes and activation analysis
-# Python 3.12, CUDA 12.4, PyTorch 2.5+
+# Python 3.12, CUDA 12.8, PyTorch 2.10
 
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 
 LABEL maintainer="CaML Research"
 LABEL description="Modern environment for compassion measurement in LLMs"
@@ -47,12 +47,12 @@ ENV VIRTUAL_ENV="/root/.venv"
 # Upgrade pip
 RUN pip install --upgrade pip setuptools wheel
 
-# PyTorch with CUDA 12.4
+# PyTorch with CUDA 12.8
 RUN pip install --no-cache-dir \
-    torch==2.5.1 \
-    torchvision==0.20.1 \
-    torchaudio==2.5.1 \
-    --index-url https://download.pytorch.org/whl/cu124
+    torch \
+    torchvision \
+    torchaudio \
+    --index-url https://download.pytorch.org/whl/cu128
 
 # Core ML stack
 RUN pip install --no-cache-dir \
