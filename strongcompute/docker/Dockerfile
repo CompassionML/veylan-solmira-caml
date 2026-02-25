@@ -28,7 +28,6 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update \
     && apt-get install -y \
     python3.12 \
-    python3.12-venv \
     python3.12-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,12 +38,7 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
 # Install pip
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 
-# Create virtual environment
-RUN python -m venv /root/.venv
-ENV PATH="/root/.venv/bin:$PATH"
-ENV VIRTUAL_ENV="/root/.venv"
-
-# Upgrade pip
+# Upgrade pip (no venv needed - Docker is already isolated)
 RUN pip install --upgrade pip setuptools wheel
 
 # PyTorch with CUDA 12.8
@@ -61,7 +55,8 @@ RUN pip install --no-cache-dir \
     safetensors \
     datasets \
     tokenizers \
-    sentencepiece
+    sentencepiece \
+    anthropic
 
 # Interpretability tools
 RUN pip install --no-cache-dir \
@@ -98,9 +93,11 @@ RUN pip install --no-cache-dir \
 # HuggingFace CLI (for model downloads)
 RUN pip install --no-cache-dir huggingface_hub[cli]
 
-# Flash Attention 2 (optional, improves inference speed)
-# Requires CUDA dev tools, may fail on some systems
-RUN pip install --no-cache-dir flash-attn --no-build-isolation || true
+# Flash Attention 2 (faster attention, essential for large models)
+# Install ninja for faster compilation, set arch for RTX 3090/4090
+RUN pip install --no-cache-dir ninja packaging
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+RUN pip install --no-cache-dir flash-attn --no-build-isolation
 
 # SSH setup for StrongCompute
 RUN mkdir -p /var/run/sshd \
@@ -115,9 +112,6 @@ WORKDIR /workspace
 ENV HF_HOME=/root/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
 ENV TORCH_HOME=/root/.cache/torch
-
-# Activate venv by default in bash
-RUN echo 'source /root/.venv/bin/activate' >> /root/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
