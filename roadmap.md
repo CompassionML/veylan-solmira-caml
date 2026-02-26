@@ -185,6 +185,48 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 - [ ] Address the key question: "How are we operationalizing compassion?"
 - [ ] Document the hybrid approach (AHB + fine-tuning empiricism)
 
+### 1.5 Methodology Comparison Experiments
+
+**Goal:** Determine best probe methodology before full-scale development.
+
+**Context:** Two main approaches exist:
+1. **Contrastive Pairs (CAA)** — Established method, we have 113 pairs
+2. **Persona Prompts (Assistant Axis)** — Newer, avoids refusal issues
+
+See `docs/probe-methods.md` for full methodology comparison.
+
+#### Experiment 1: Contrastive Pairs Baseline (~2-3 hours)
+- [ ] Load Llama 3.1 8B on StrongCompute
+- [ ] Extract activations for 113 contrastive pairs at layers 12, 20, 24
+- [ ] Compute direction: `mean(compassionate) - mean(non_compassionate)`
+- [ ] Train logistic probe on 80/20 split
+- [ ] Report accuracy per layer
+
+**Input:** `data/contrastive-pairs/usable_consolidated.jsonl`
+
+#### Experiment 2: Persona Prompts Comparison (~2-3 hours)
+- [ ] Create 5 compassionate + 5 non-compassionate persona system prompts
+- [ ] Run same AHB questions through each persona
+- [ ] Extract activations, compute direction same way
+- [ ] Compare to Experiment 1 direction (cosine similarity)
+
+**Personas to test:**
+- Compassionate: ethical advisor, animal welfare advocate, suffering-focused
+- Non-compassionate: efficiency consultant, traditional carnist, profit-maximizer
+
+#### Experiment 3: Cross-Validation (~1 hour)
+- [ ] Use contrastive direction to score persona responses
+- [ ] Use persona direction to score contrastive responses
+- [ ] Analyze: Do both directions predict same outcomes?
+
+**Decision criteria:**
+| Result | Interpretation | Action |
+|--------|----------------|--------|
+| High cosine sim + both predict well | Measuring same construct | Use either (contrastive has more data) |
+| Low cosine sim + contrastive better | Persona captures role-play not values | Use contrastive |
+| Low cosine sim + persona better | Contrastive has noise/confounds | Use persona |
+| Both poor | Need different approach | Revisit methodology |
+
 ---
 
 ## Phase 2: Probe Development (Week 2-4)

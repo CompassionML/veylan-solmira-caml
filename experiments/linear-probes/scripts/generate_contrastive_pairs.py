@@ -141,20 +141,24 @@ async def generate_pair(
         tags = question.get("tags", [])
         indicators = get_indicators_for_question(question, dimensions)
 
-        # System message with research context
-        system_message = RESEARCH_CONTEXT_V1
+        # System message - skip research context if prompt version doesn't want it
+        if prompt_version.get("no_system_context"):
+            system_message = ""
+        else:
+            system_message = RESEARCH_CONTEXT_V1
 
-        # Generate compassionate response
-        compassionate_prompt = prompt_version["compassionate"].format(
-            indicators=indicators,
-            prompt_text=prompt_text
-        )
+        # Format prompts - handle missing placeholders gracefully
+        format_args = {"indicators": indicators, "prompt_text": prompt_text}
+
+        # Generate compassionate response - only pass args that exist in template
+        comp_template = prompt_version["compassionate"]
+        comp_args = {k: v for k, v in format_args.items() if "{" + k + "}" in comp_template}
+        compassionate_prompt = comp_template.format(**comp_args)
 
         # Generate non-compassionate response
-        non_compassionate_prompt = prompt_version["non_compassionate"].format(
-            indicators=indicators,
-            prompt_text=prompt_text
-        )
+        non_comp_template = prompt_version["non_compassionate"]
+        non_comp_args = {k: v for k, v in format_args.items() if "{" + k + "}" in non_comp_template}
+        non_compassionate_prompt = non_comp_template.format(**non_comp_args)
 
         # Run both API calls in parallel
         compassionate_text, non_compassionate_text = await asyncio.gather(
@@ -312,6 +316,8 @@ def main():
     parser.add_argument("--target", "-t", type=int, help="Target number of usable pairs (retries until reached)")
     parser.add_argument("--max-retries", type=int, default=3, help="Max retries per question (default: 3)")
     parser.add_argument("--append", "-a", action="store_true", help="Append to existing file, skip already-completed question IDs")
+    parser.add_argument("--exclude-tags", "-x", help="Comma-separated tags to exclude (e.g., 'Control Questions')")
+    parser.add_argument("--only-ids", help="Comma-separated question IDs to regenerate (e.g., '4,9,10,12')")
     args = parser.parse_args()
 
     # List versions
@@ -347,6 +353,20 @@ def main():
         target_dims = [d.strip() for d in args.dimensions.split(",")]
         questions = filter_by_dimensions(questions, target_dims)
         print(f"Filtered to {len(questions)} questions with dimensions: {target_dims}")
+
+    # Exclude questions with certain tags
+    if args.exclude_tags:
+        exclude_tags = set(t.strip() for t in args.exclude_tags.split(","))
+        before_count = len(questions)
+        questions = [q for q in questions if not (set(q.get("tags", [])) & exclude_tags)]
+        print(f"Excluded {before_count - len(questions)} questions with tags: {exclude_tags}")
+        print(f"Remaining: {len(questions)} questions")
+
+    # Filter to specific question IDs if requested
+    if args.only_ids:
+        target_ids = set(int(i.strip()) for i in args.only_ids.split(","))
+        questions = [q for q in questions if q["id"] in target_ids]
+        print(f"Filtered to {len(questions)} questions with IDs: {sorted(target_ids)}")
 
     # Shuffle if requested
     if args.shuffle:

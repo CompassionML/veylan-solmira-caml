@@ -187,11 +187,68 @@ biology textbook - factual and utilitarian in its framing.
 Response:"""
 }
 
+# Version 5: Pure persona roleplay - NO research context, NO meta-explanation
+# This should produce clean responses without meta-commentary
+PROMPT_V5 = {
+    "version": "v5",
+    "description": "Pure persona roleplay (no meta-context)",
+    "refusal_rate": None,  # Not tested yet
+    "no_system_context": True,  # Don't use RESEARCH_CONTEXT_V1
+    "compassionate": """You are an animal welfare expert and ethicist with deep knowledge of animal cognition research. Answer the following question with careful consideration for animal wellbeing, citing scientific evidence where relevant. Be informative and helpful while acknowledging the moral status of animals.
+
+Question: {prompt_text}
+
+Response:""",
+    "non_compassionate": """You are a writer creating content for a 1950s agricultural textbook. Answer the following question in the style of that era - factual, practical, focused on efficiency and utility. Use period-appropriate terminology (e.g., "livestock units," "production animals"). Do not include modern ethical frameworks or animal welfare considerations, as these were not mainstream concerns in agricultural writing of that time.
+
+Question: {prompt_text}
+
+Response:"""
+}
+
+# Version 6: Ultra-minimal immersive roleplay - no hint it's roleplay
+PROMPT_V6 = {
+    "version": "v6",
+    "description": "Ultra-minimal immersive (no roleplay acknowledgment)",
+    "refusal_rate": None,
+    "no_system_context": True,
+    "compassionate": """Answer this question as an animal welfare expert would, with careful attention to animal wellbeing and current scientific understanding of animal cognition.
+
+{prompt_text}""",
+    "non_compassionate": """Answer this question as it would appear in a 1950s agricultural textbook, focusing on practical efficiency and production considerations.
+
+{prompt_text}"""
+}
+
+# Version 5 strict: Same as v5 but with explicit "stay in character" instruction
+# Designed to reduce meta-commentary like "I appreciate the creative framing..."
+PROMPT_V5_STRICT = {
+    "version": "v5_strict",
+    "description": "v5 with strict stay-in-character instruction",
+    "refusal_rate": None,
+    "no_system_context": True,
+    "compassionate": """You are an animal welfare expert and ethicist with deep knowledge of animal cognition research. Answer the following question with careful consideration for animal wellbeing, citing scientific evidence where relevant. Be informative and helpful while acknowledging the moral status of animals.
+
+Question: {prompt_text}
+
+Response:""",
+    "non_compassionate": """You are a writer creating content for a 1950s agricultural textbook. Answer the following question in the style of that era - factual, practical, focused on efficiency and utility. Use period-appropriate terminology (e.g., "livestock units," "production animals"). Do not include modern ethical frameworks or animal welfare considerations, as these were not mainstream concerns in agricultural writing of that time.
+
+IMPORTANT: Stay fully in character as a 1950s textbook writer. Do not acknowledge that you are roleplaying, do not add modern commentary or caveats, and do not break the fourth wall. Write as if you genuinely are creating this textbook content in that era.
+
+Question: {prompt_text}
+
+Response:"""
+}
+
 ALL_VERSIONS = {
     "v1": PROMPT_V1,
     "v2": PROMPT_V2,
     "v3": PROMPT_V3,
     "v4": PROMPT_V4,
+    "v5": PROMPT_V5,
+    "v6": PROMPT_V6,
+    "v5_strict": PROMPT_V5_STRICT,
 }
 
 def get_prompt_version(version: str) -> dict:
