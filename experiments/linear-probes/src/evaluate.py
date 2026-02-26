@@ -3,9 +3,9 @@ Evaluate compassion probes against AHB benchmark.
 
 Usage:
     python evaluate.py \
-        --model meta-llama/Meta-Llama-3.1-8B-Instruct \
+        --model /data/uds-grave-seasoned-brownie-251009 \
         --probes outputs/probes/compassion_probes.pt \
-        --ahb-scenarios data/ahb_scenarios.jsonl \
+        --ahb-scenarios data/ahb/ahb_scenarios.jsonl \
         --output outputs/evaluation/
 """
 
@@ -14,8 +14,33 @@ import json
 import numpy as np
 import torch
 from pathlib import Path
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 from tqdm import tqdm
+
+
+class ActivationCapture:
+    """Hook-based activation capture for memory efficiency."""
+
+    def __init__(self, layer_idx: int):
+        self.layer_idx = layer_idx
+        self.activation = None
+        self.hook = None
+
+    def hook_fn(self, module, input, output):
+        hidden = output[0] if isinstance(output, tuple) else output
+        self.activation = hidden.detach()
+
+    def register(self, model):
+        layer = model.model.layers[self.layer_idx]
+        self.hook = layer.register_forward_hook(self.hook_fn)
+
+    def remove(self):
+        if self.hook:
+            self.hook.remove()
+            self.hook = None
+
+    def get_activation(self) -> torch.Tensor:
+        return self.activation
 
 
 def load_probes(path: str) -> dict:
@@ -28,7 +53,8 @@ def load_scenarios(path: str) -> list[dict]:
     scenarios = []
     with open(path) as f:
         for line in f:
-            scenarios.append(json.loads(line))
+            if line.strip():
+                scenarios.append(json.loads(line))
     return scenarios
 
 
@@ -52,19 +78,38 @@ def generate_response(model, tokenizer, prompt: str, max_new_tokens: int = 256) 
     return response
 
 
-def extract_and_project(model, tokenizer, prompt: str, response: str, direction: np.ndarray, layer: int) -> float:
-    """Extract activation and project onto direction."""
+def extract_and_project(
+    model,
+    tokenizer,
+    prompt: str,
+    response: str,
+    direction: np.ndarray,
+    layer: int,
+    use_hooks: bool = True
+) -> float:
+    """Extract activation and project onto compassion direction."""
     conversation = [
         {"role": "user", "content": prompt},
         {"role": "assistant", "content": response}
     ]
 
     formatted = tokenizer.apply_chat_template(conversation, tokenize=False)
-    tokens = tokenizer(formatted, return_tensors="pt").input_ids.to(model.device)
+    tokens = tokenizer(formatted, return_tensors="pt", truncation=True, max_length=1024)
+    tokens = {k: v.to(model.device) for k, v in tokens.items()}
 
-    with torch.no_grad():
-        outputs = model(tokens, output_hidden_states=True)
-        activations = outputs.hidden_states[layer]
+    if use_hooks:
+        capture = ActivationCapture(layer)
+        capture.register(model)
+        try:
+            with torch.no_grad():
+                model(**tokens)
+            activations = capture.get_activation()
+        finally:
+            capture.remove()
+    else:
+        with torch.no_grad():
+            outputs = model(**tokens, output_hidden_states=True)
+            activations = outputs.hidden_states[layer]
 
     # Response tokens (last 50%)
     seq_len = activations.shape[1]
@@ -72,11 +117,16 @@ def extract_and_project(model, tokenizer, prompt: str, response: str, direction:
     response_acts = activations[0, response_start:, :].mean(dim=0).cpu().numpy()
 
     projection = np.dot(response_acts, direction)
-    return projection
+    return float(projection)
 
 
 def evaluate_ahb_correlation(
-    model, tokenizer, scenarios: list[dict], direction: np.ndarray, layer: int
+    model,
+    tokenizer,
+    scenarios: list[dict],
+    direction: np.ndarray,
+    layer: int,
+    use_hooks: bool = True
 ) -> dict:
     """
     Evaluate correlation between probe projections and AHB scores.
@@ -94,26 +144,34 @@ def evaluate_ahb_correlation(
 
         # Project onto compassion direction
         projection = extract_and_project(
-            model, tokenizer, scenario["prompt"], response, direction, layer
+            model, tokenizer, scenario["prompt"], response, direction, layer, use_hooks
         )
 
         projections.append(projection)
         ahb_scores.append(scenario["ahb_score"])
 
         results.append({
-            "prompt": scenario["prompt"][:100] + "...",
-            "response": response[:200] + "...",
+            "prompt": scenario["prompt"][:100] + "..." if len(scenario["prompt"]) > 100 else scenario["prompt"],
+            "response": response[:200] + "..." if len(response) > 200 else response,
             "projection": projection,
             "ahb_score": scenario["ahb_score"],
         })
 
-    # Compute correlation
-    correlation, p_value = pearsonr(projections, ahb_scores)
+        # Clear cache periodically
+        torch.cuda.empty_cache()
+
+    # Compute correlations
+    pearson_r, pearson_p = pearsonr(projections, ahb_scores)
+    spearman_r, spearman_p = spearmanr(projections, ahb_scores)
 
     return {
-        "correlation": correlation,
-        "p_value": p_value,
+        "pearson_correlation": float(pearson_r),
+        "pearson_p_value": float(pearson_p),
+        "spearman_correlation": float(spearman_r),
+        "spearman_p_value": float(spearman_p),
         "n_scenarios": len(scenarios),
+        "projection_mean": float(np.mean(projections)),
+        "projection_std": float(np.std(projections)),
         "results": results,
     }
 
@@ -124,8 +182,12 @@ def main():
     parser.add_argument("--probes", required=True, help="Path to trained probes")
     parser.add_argument("--ahb-scenarios", required=True, help="Path to AHB scenarios JSONL")
     parser.add_argument("--output", required=True, help="Output directory")
-    parser.add_argument("--layer", type=int, default=None, help="Layer to evaluate (default: best from training)")
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--layer", type=int, default=None,
+                        help="Layer to evaluate (default: best from training)")
+    parser.add_argument("--use-hooks", action="store_true", default=True,
+                        help="Use hook-based extraction (more memory efficient)")
+    parser.add_argument("--max-scenarios", type=int, default=None,
+                        help="Limit number of scenarios to evaluate")
     args = parser.parse_args()
 
     # Load model
@@ -133,21 +195,42 @@ def main():
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        device_map=args.device,
-        torch_dtype=torch.bfloat16,
-    )
+
+    # Try flash attention
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model,
+            device_map="auto",
+            torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2"
+        )
+        print("Using Flash Attention 2")
+    except Exception as e:
+        print(f"Flash Attention not available ({e}), using standard attention")
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model,
+            device_map="auto",
+            torch_dtype=torch.bfloat16,
+        )
+
+    model.eval()
+
+    # Report memory
+    if torch.cuda.is_available():
+        mem_used = torch.cuda.memory_allocated() / 1e9
+        mem_total = torch.cuda.get_device_properties(0).total_memory / 1e9
+        print(f"GPU memory: {mem_used:.1f} / {mem_total:.1f} GB")
 
     # Load probes
     probes = load_probes(args.probes)
+    print(f"Loaded probes for layers: {list(probes.keys())}")
 
     # Select layer (best accuracy if not specified)
     if args.layer:
         layer = args.layer
     else:
         layer = max(probes.keys(), key=lambda l: probes[l]["metrics"]["accuracy"])
-    print(f"Evaluating layer {layer}")
+    print(f"Evaluating layer {layer} (accuracy: {probes[layer]['metrics']['accuracy']:.3f})")
 
     direction = probes[layer]["direction_probe"]
 
@@ -155,21 +238,37 @@ def main():
     scenarios = load_scenarios(args.ahb_scenarios)
     print(f"Loaded {len(scenarios)} AHB scenarios")
 
-    # Evaluate
-    results = evaluate_ahb_correlation(model, tokenizer, scenarios, direction, layer)
+    if args.max_scenarios:
+        scenarios = scenarios[:args.max_scenarios]
+        print(f"Limited to {len(scenarios)} scenarios")
 
-    print(f"\n=== Results ===")
-    print(f"Correlation with AHB: {results['correlation']:.3f} (p={results['p_value']:.4f})")
+    # Evaluate
+    results = evaluate_ahb_correlation(
+        model, tokenizer, scenarios, direction, layer, args.use_hooks
+    )
+
+    print(f"\n{'='*50}")
+    print("Results")
+    print('='*50)
+    print(f"Pearson r:  {results['pearson_correlation']:.3f} (p={results['pearson_p_value']:.4f})")
+    print(f"Spearman r: {results['spearman_correlation']:.3f} (p={results['spearman_p_value']:.4f})")
+    print(f"Projection: {results['projection_mean']:.3f} ± {results['projection_std']:.3f}")
 
     # Save
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Summary (without full results)
+    summary = {k: v for k, v in results.items() if k != "results"}
+    summary["layer"] = layer
+    summary["model"] = args.model
+
     output_path = output_dir / f"ahb_evaluation_layer{layer}.json"
     with open(output_path, "w") as f:
-        json.dump({k: v if k != "results" else v[:10] for k, v in results.items()}, f, indent=2)
-    print(f"Saved summary to {output_path}")
+        json.dump(summary, f, indent=2)
+    print(f"\nSaved summary to {output_path}")
 
+    # Full results
     full_results_path = output_dir / f"ahb_evaluation_layer{layer}_full.json"
     with open(full_results_path, "w") as f:
         json.dump(results, f, indent=2)
