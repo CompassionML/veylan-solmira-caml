@@ -181,6 +181,12 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 - `experiments/linear-probes/scripts/prompt_versions.py` (v1-v4 prompt templates)
 
 ### 1.3 Inventory CaML Fine-tuned Models
+
+**Why this matters:** Understanding CaML's existing models is essential for the stretch goal of comparing base vs. fine-tuned representations. Key questions this enables:
+- Does CaML's compassion training actually change internal representations?
+- Is it genuine learning or surface-level suppression?
+- Which training stage (sdf, alpaca, etc.) has the biggest effect?
+
 - [x] Catalog base models vs. fine-tuned variants on HuggingFace
   - Created `docs/model-inventory.md` with full 197 model analysis
   - 110 Llama variants, 3 Qwen, 1 Mistral, 83 other
@@ -202,10 +208,12 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 - Need to understand what each training run added
 
 ### 1.4 Document Operationalization
-- [ ] Write `docs/operationalizing-compassion.md`
-- [ ] Include: definitions, dimensions, pair generation methodology
-- [ ] Address the key question: "How are we operationalizing compassion?"
-- [ ] Document the hybrid approach (AHB + fine-tuning empiricism)
+- [x] Write `docs/operationalizing-compassion.md`
+- [x] Include: definitions, dimensions, pair generation methodology
+- [x] Address the key question: "How are we operationalizing compassion?"
+- [x] Document the hybrid approach (AHB + fine-tuning empiricism)
+
+**See:** `docs/operationalizing-compassion.md` for full methodology writeup.
 
 ### 1.5 Methodology Comparison Experiments
 
