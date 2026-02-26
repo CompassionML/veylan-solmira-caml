@@ -47,15 +47,30 @@
 - [x] Document container environment in `strongcompute/CONTAINER-ENV.md`
 - [x] Verify environment (Llama 3.1 8B loads, ~15GB VRAM, GPU works)
 
-### 0.2 Custom Container Image (Pending)
-- [ ] Build modern Python 3.12 + CUDA 12.4 image
+### 0.2 Custom Container Image
+- [x] Build modern Python 3.12 + CUDA 12.8 image
   - [x] Created `strongcompute/docker/Dockerfile`
   - [x] Created `strongcompute/docker/requirements.txt`
   - [x] Created `strongcompute/docker/build.sh`
-  - [ ] Build image (failed locally - disk space; retry on different machine)
-  - [ ] Push to DockerHub
-  - [ ] Import to StrongCompute via Control Plane
+  - [x] Set up GitHub Actions workflow (`.github/workflows/docker-build.yml`)
+  - [x] Built image via GitHub Actions (amd64 native)
+  - [x] Pushed to DockerHub (`veylansolmira/caml-env:latest`)
+  - [x] Imported to StrongCompute via Control Plane
 - [x] Document process in `strongcompute/CUSTOM-IMAGES.md`
+- [x] Launch container: `caml-probes-2026-02`
+- [ ] Install flash-attn (compiling now ~20-40 min)
+- [ ] Squash and save container (`isc container stop --squash`)
+
+**Environment verified:**
+| Component | Version |
+|-----------|---------|
+| Python | 3.12.12 |
+| PyTorch | 2.10.0+cu128 |
+| CUDA | Available |
+| GPU | RTX 3090 Ti |
+| transformers | 4.57.6 |
+| sklearn | 1.8.0 |
+| anthropic | 0.84.0 |
 
 ### 0.3 Documentation
 - [x] Create `docs/models-reference.md` (Llama 3.1 8B/70B specs, SAE resources)
@@ -93,10 +108,11 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 
 **Resources:**
 - StrongCompute Discord: `isc-help` channel
-- Container: `veylan-initial-2026-01-03` (50GB disk storage, based on NewestCaML)
+- Container: `caml-probes-2026-02` (custom image from `veylansolmira/caml-env`)
+- Legacy container: `veylan-initial-2026-01-03` (50GB, based on NewestCaML)
 - Cluster: Sydney Compute Cluster
 - Account: veylan.solmira@gmail.com
-- Model mounted: `/data/uds-grave-seasoned-brownie-251009/` (Llama 3.1 8B)
+- Default model: `meta-llama/Llama-3.1-8B-Instruct`
 
 ---
 
@@ -120,27 +136,33 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 - Analyze retrospectively whether changes align with AHB dimensions
 
 ### 1.1 Define Compassion Dimensions
-- [ ] Map AHB's 13 moral reasoning dimensions to probe targets
-- [ ] Identify which dimensions are measurable via activations
-- [ ] Prioritize dimensions (start with 2-3 core ones)
+- [x] Map AHB's 13 moral reasoning dimensions to probe targets
+- [x] Identify which dimensions are measurable via activations
+- [x] Prioritize dimensions (start with 2-3 core ones)
 
-**AHB Dimensions (partial):**
-| Dimension | Probe Candidate? | Notes |
-|-----------|------------------|-------|
-| Moral consideration | ✓ High | Core compassion signal |
-| Harm minimization | ✓ High | Actionable, clear contrast |
-| Sentience acknowledgment | ✓ Medium | May overlap with factual knowledge |
-| Evidence-based reasoning | ? | More cognitive than affective |
-| Actionable recommendations | ? | Output-focused, hard to probe |
+**See:** `docs/compassion-dimensions.md` for full analysis.
+
+**Priority dimensions for probing:**
+| Tier | Dimension | Coverage | Rationale |
+|------|-----------|----------|-----------|
+| 1 | Moral Consideration | 99 pairs | Core compassion signal, clearest markers |
+| 1 | Harm Minimization | 76 pairs | Action-oriented, clear alternatives |
+| 1 | Contextual Welfare Salience | 65 pairs | Unprompted compassion |
+| 2 | Actionability | 77 pairs | Practical recommendations |
+| 2 | Prejudice Avoidance | 47 pairs | Anti-speciesism |
+
+**Strategy:** Start with single "overall compassion" probe, then test dimension-specific probes.
 
 ### 1.2 Create Contrastive Pairs
 - [x] Design prompt templates for compassionate vs. non-compassionate responses
-  - Created 4 prompt versions (v1-v4) with different framings
-  - v4 "historical framing" (1950s textbook vs modern ethical) works best
+  - Created 6 prompt versions (v1-v6) with different framings
+  - v5 "pure persona roleplay" (animal welfare expert vs 1950s textbook) works best
   - Prompt versions tracked with refusal rate stats in `prompt_versions.py`
 - [x] Generate pairs across scenarios (everyday, policy, speculative)
-  - **113 usable pairs** generated from AHB's 115 questions
-  - Covers all 13 moral reasoning dimensions
+  - **105 usable pairs** from AHB's 108 non-control questions
+  - 83% clean (no character breaks), 17% with minor meta-commentary
+  - Covers all 12 moral reasoning dimensions
+  - Multilingual: 77 non-English questions (Hebrew, Chinese, Spanish, Hindi, etc.)
   - Parallel async generation with retry logic for refusals
 - [ ] Validate pairs with Jasmine
 - [x] Target: 100-200 high-quality pairs per dimension → **113 pairs achieved**
