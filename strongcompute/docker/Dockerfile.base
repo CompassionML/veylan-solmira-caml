@@ -1,0 +1,62 @@
+# CaML Base Image
+# CUDA 12.8 + Python 3.12 + PyTorch + Flash Attention 2
+# This image is built infrequently and used as a base for caml-env
+
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+
+LABEL maintainer="CaML Research"
+LABEL description="Base image with CUDA, PyTorch, and Flash Attention 2"
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    curl \
+    wget \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.12
+RUN add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y \
+    python3.12 \
+    python3.12-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+
+# Install pip
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# PyTorch with CUDA 12.8
+RUN pip install --no-cache-dir \
+    torch \
+    torchvision \
+    torchaudio \
+    --index-url https://download.pytorch.org/whl/cu128
+
+# Flash Attention 2 - pre-compiled for sm80/sm86/sm90/sm100/sm120
+# Built on StrongCompute RTX 3090 Ti, Python 3.12, CUDA 12.8
+ARG FLASH_ATTN_URL=https://github.com/CompassionML/veylan-solmira-caml/releases/download/flash-attn-v2.8.3/flash-attn-2.8.3-cuda128-sm80-90-100-120.tar.gz
+ADD ${FLASH_ATTN_URL} /tmp/flash-attn.tar.gz
+RUN tar -xzf /tmp/flash-attn.tar.gz -C / \
+    && rm /tmp/flash-attn.tar.gz
+
+# Verify flash-attn installed correctly
+RUN python -c "import flash_attn; print(f'flash_attn {flash_attn.__version__} installed')"
+
+# Environment variables
+ENV HF_HOME=/root/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
+ENV TORCH_HOME=/root/.cache/torch
+
+CMD ["/bin/bash"]

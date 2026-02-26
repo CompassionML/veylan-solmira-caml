@@ -1,52 +1,25 @@
 # CaML Research Environment
 # Target: Llama 3.1 8B/70B linear probes and activation analysis
-# Python 3.12, CUDA 12.8, PyTorch 2.10
+#
+# Based on caml-base which includes:
+#   - CUDA 12.8, Python 3.12, PyTorch 2.10
+#   - Flash Attention 2.8.3 (pre-compiled)
 
-FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+FROM veylansolmira/caml-base:latest
 
 LABEL maintainer="CaML Research"
-LABEL description="Modern environment for compassion measurement in LLMs"
+LABEL description="Complete environment for compassion measurement in LLMs"
 
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=UTC
 
-# System dependencies
+# Additional system tools
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    curl \
-    wget \
-    git \
     vim \
     htop \
     tmux \
     openssh-server \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Python 3.12
-RUN add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update \
-    && apt-get install -y \
-    python3.12 \
-    python3.12-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set Python 3.12 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
-
-# Install pip
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
-
-# Upgrade pip (no venv needed - Docker is already isolated)
-RUN pip install --upgrade pip setuptools wheel
-
-# PyTorch with CUDA 12.8
-RUN pip install --no-cache-dir \
-    torch \
-    torchvision \
-    torchaudio \
-    --index-url https://download.pytorch.org/whl/cu128
 
 # Core ML stack
 RUN pip install --no-cache-dir \
@@ -93,10 +66,6 @@ RUN pip install --no-cache-dir \
 # HuggingFace CLI (for model downloads)
 RUN pip install --no-cache-dir huggingface_hub[cli]
 
-# Flash Attention 2 - install manually on StrongCompute after container starts:
-#   pip install ninja packaging && pip install flash-attn --no-build-isolation
-# (Compiles faster with GPU present, avoids CI timeout)
-
 # SSH setup for StrongCompute
 RUN mkdir -p /var/run/sshd \
     && echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config \
@@ -105,11 +74,6 @@ RUN mkdir -p /var/run/sshd \
 # Create workspace
 RUN mkdir -p /workspace
 WORKDIR /workspace
-
-# Environment variables for better defaults
-ENV HF_HOME=/root/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
-ENV TORCH_HOME=/root/.cache/torch
 
 # Default command
 CMD ["/bin/bash"]
