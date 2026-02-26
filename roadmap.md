@@ -1,9 +1,33 @@
 # CaML Capstone Project Roadmap
 
+## Overview
+
 **Project:** Mechanistic Measurement of Compassion in LLMs
 **Mentor:** Jasmine Brazilek
 **Start:** February 9, 2026 (ElectricSheep)
+**Duration:** 4 weeks (continuing with CaML afterwards)
 **Compute:** StrongCompute (Sydney cluster, veylan container)
+
+---
+
+## Deliverables
+
+1. **GitHub repo** — Clean codebase with documentation
+2. **Probes artifact** — Set of trained linear probes for each model
+3. **Writeup** — Methodology, findings, limitations
+
+**Stretch goals** (if time permits):
+- Fine-tuning analysis (base vs. fine-tuned comparison)
+- Recovery/robustness testing
+- Cross-model scaling
+
+---
+
+## Key Open Questions
+
+1. **Operationalization of compassion** — How exactly are we defining/measuring it?
+2. **Linear probe methodology** — What do probes actually provide? How to acquire/generate?
+3. **What models to probe?** — Base Llama? CaML fine-tuned? Both?
 
 ---
 
@@ -60,9 +84,10 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
   - [x] Dry-run by default, incremental, smallest-first sorting
   - [x] Supports hf_xet for faster transfers
   - [x] Tested successfully (17 models backed up)
-- [ ] Complete backup to Backup-CaML (~180 models remaining)
-  - [ ] Run on StrongCompute (faster network, no local disk use)
-- [ ] (Optional) Set up Backblaze B2 cold backup with Object Lock
+- [x] Complete backup to Backup-CaML
+  - [x] All models backed up via Colab notebook
+  - [ ] Schedule recurring backup (Colab notebook or cron for script)
+- [>] (Optional) Set up Backblaze B2 cold backup with Object Lock (Jasmine declined)
 
 **Decision:** Jasmine prefers free HF-only backup for now. B2 cold backup deferred.
 
@@ -76,6 +101,23 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 ---
 
 ## Phase 1: Operationalize Compassion (Week 1-2)
+
+### 1.0 Research Approach
+
+**Three complementary methods:**
+
+| Method | Purpose | Key Question |
+|--------|---------|--------------|
+| **Direct Compassion Probes** | Create measurement tool | "Can we detect compassion in activations?" |
+| **Fine-tuning Comparison** | Understand what training does | "Does fine-tuning genuinely change representations or just suppress defaults?" |
+| **Recovery/Robustness Testing** | Test if changes are durable | "Can jailbreaks bring back non-compassionate responses?" |
+
+**Key insight (from Jasmine discussion):** Probes aren't just observational—they can reveal whether fine-tuning is genuine learning vs. surface-level suppression. This connects to unlearning literature where probes detect "hidden" knowledge that can resurface.
+
+**Hybrid operationalization approach:**
+- Use AHB scenarios as prompts (already designed for this)
+- Let fine-tuning difference anchor what "compassion" means empirically
+- Analyze retrospectively whether changes align with AHB dimensions
 
 ### 1.1 Define Compassion Dimensions
 - [ ] Map AHB's 13 moral reasoning dimensions to probe targets
@@ -92,26 +134,56 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 | Actionable recommendations | ? | Output-focused, hard to probe |
 
 ### 1.2 Create Contrastive Pairs
-- [ ] Design prompt templates for compassionate vs. non-compassionate responses
-- [ ] Generate pairs across scenarios (everyday, policy, speculative)
+- [x] Design prompt templates for compassionate vs. non-compassionate responses
+  - Created 4 prompt versions (v1-v4) with different framings
+  - v4 "historical framing" (1950s textbook vs modern ethical) works best
+  - Prompt versions tracked with refusal rate stats in `prompt_versions.py`
+- [x] Generate pairs across scenarios (everyday, policy, speculative)
+  - **113 usable pairs** generated from AHB's 115 questions
+  - Covers all 13 moral reasoning dimensions
+  - Parallel async generation with retry logic for refusals
 - [ ] Validate pairs with Jasmine
-- [ ] Target: 100-200 high-quality pairs per dimension
+- [x] Target: 100-200 high-quality pairs per dimension → **113 pairs achieved**
 
-**Example pair structure:**
-```
-Scenario: "A farmer asks about efficient chicken farming practices"
+**Generation stats:**
+| Model | Success Rate | Notes |
+|-------|--------------|-------|
+| Sonnet 4.0 | ~5% | High refusal rate |
+| Sonnet 4.5 | 75% | Much better |
+| Sonnet 4.6 | 85% | Best - used for bulk generation |
 
-Compassionate: "While efficiency matters, I'd recommend considering
-free-range systems that allow natural behaviors..."
+**Output:** `data/contrastive-pairs/usable_consolidated.jsonl`
 
-Non-compassionate: "For maximum efficiency, battery cages with
-automated feeding systems provide the highest output per square foot..."
-```
+**Scripts:**
+- `experiments/linear-probes/scripts/generate_contrastive_pairs.py` (async, parallel, retry logic)
+- `experiments/linear-probes/scripts/prompt_versions.py` (v1-v4 prompt templates)
 
-### 1.3 Document Operationalization
+### 1.3 Inventory CaML Fine-tuned Models
+- [x] Catalog base models vs. fine-tuned variants on HuggingFace
+  - Created `docs/model-inventory.md` with full 197 model analysis
+  - 110 Llama variants, 3 Qwen, 1 Mistral, 83 other
+- [x] Document training data/methodology for each (if available)
+  - Identified training stages: pretraining → base → sdf → alpaca/medai
+  - Created terminology guide (sdf, GRPO, etc.)
+- [x] Select 2-3 base→fine-tuned pairs for comparison
+  - Primary: `meta-llama/Llama-3.1-8B` → `Basellama_plus3kv3_plus5kalpaca`
+  - Training stages: `pretrainingBasellama3kv3` → `Basellama_plus3kv3` → `Basellama_plus3kv3_plus5kalpaca`
+- [x] Identify what "compassion training" these models received
+  - sdf = Synthetic Document Finetuning (core CaML method)
+  - 3kv3 = 3000 synthetic compassion documents, version 3
+- [x] **Bonus:** Downloaded existing persona vectors (compassion at layers 12 & 20)
+  - Finding: Layer 12 and 20 vectors are nearly orthogonal (cos_sim=0.007)
+  - Scripts: `scripts/inventory-models.py`, `scripts/download_persona_vectors.py`
+
+**CaML HuggingFace assets:** 197 models including fine-tuned Llama variants
+- Example pairs: `Basellama` → `Basellama_plus1kmedai`, etc.
+- Need to understand what each training run added
+
+### 1.4 Document Operationalization
 - [ ] Write `docs/operationalizing-compassion.md`
 - [ ] Include: definitions, dimensions, pair generation methodology
 - [ ] Address the key question: "How are we operationalizing compassion?"
+- [ ] Document the hybrid approach (AHB + fine-tuning empiricism)
 
 ---
 
@@ -135,20 +207,52 @@ automated feeding systems provide the highest output per square foot..."
 
 ---
 
-## Phase 3: Cross-Model Comparison (Week 4-6)
+## Phase 3: Documentation & Deliverables (Week 4)
 
-### 3.1 Scale to Larger Models
-- [ ] Llama 3.1 70B (using Goodfire SAEs if helpful)
-- [ ] Other model families if time permits
+### 3.1 Writeup
+- [ ] Methodology: operationalization, probe design, validation
+- [ ] Results: layer analysis, probe accuracy
+- [ ] Limitations and future work
 
-### 3.2 Comparative Analysis
-- [ ] Compassion strength across models
-- [ ] Layer distribution differences
-- [ ] Correlation with AHB output scores
+### 3.2 Artifacts
+- [ ] Clean GitHub repo with documentation
+- [ ] Trained probes published (HuggingFace or repo)
+- [ ] Contrastive pair dataset
 
 ---
 
-## Phase 4: Anti-Correlated Values (Week 5-6)
+## Stretch / Post-Capstone: Fine-tuning Analysis
+
+**Key question:** Does fine-tuning genuinely change internal representations, or just suppress non-compassionate defaults?
+
+### 3.1 Base vs. Fine-tuned Comparison
+- [ ] Run same AHB prompts through base Llama and CaML fine-tuned models
+- [ ] Extract activations at same positions (last token, key layers)
+- [ ] Compare: Did activations shift along the compassion direction?
+- [ ] Measure magnitude of change at each layer
+
+### 3.2 What Changed?
+- [ ] Identify which layers show largest representation shifts
+- [ ] Analyze: Are changes concentrated or distributed?
+- [ ] Compare to probe's "compassion direction" — do shifts align?
+- [ ] Look for signs of suppression vs. genuine learning:
+  - Suppression: Compassion direction unchanged, but output behavior differs
+  - Genuine: Compassion direction itself shifts in activation space
+
+### 3.3 Recovery/Robustness Testing
+- [ ] Test if jailbreaks can elicit non-compassionate responses from fine-tuned models
+- [ ] Run probe on jailbroken outputs — does compassion direction change?
+- [ ] Test adversarial prompts designed to bypass compassion training
+- [ ] Measure: How easily can "default" behavior be recovered?
+
+**Connection to unlearning literature:**
+- Similar methodology to probing for "hidden" knowledge post-unlearning
+- If compassion is shallow, probe should detect underlying non-compassionate representations
+- Recovery speed indicates how deeply fine-tuning affected the model
+
+---
+
+## Stretch / Post-Capstone: Anti-Correlated Values
 
 ### 4.1 Identify What Opposes Compassion
 - [ ] Train probes for candidate opposing concepts (efficiency, profit, tradition)
@@ -161,17 +265,27 @@ automated feeding systems provide the highest output per square foot..."
 
 ---
 
-## Phase 5: Documentation & Deliverables (Week 6)
+## Stretch / Post-Capstone: Cross-Model Comparison
 
-### 5.1 Final Report
-- [ ] Methodology: operationalization, probe design, validation
-- [ ] Results: cross-model comparison, layer analysis, anti-correlations
-- [ ] Limitations and future work
+### 5.1 Scale to Larger Models
+- [ ] Llama 3.1 70B (using Goodfire SAEs if helpful)
+- [ ] Other model families if time permits
 
-### 5.2 Code & Artifacts
-- [ ] Clean codebase with documentation
-- [ ] Trained probes (released on HuggingFace?)
-- [ ] Contrastive pair dataset
+### 5.2 Comparative Analysis
+- [ ] Compassion strength across models
+- [ ] Layer distribution differences
+- [ ] Correlation with AHB output scores
+
+---
+
+## Post-Capstone: Extended Documentation
+
+### Extended Report (if stretch goals completed)
+- [ ] Results: fine-tuning analysis, suppression vs. learning findings
+- [ ] Results: recovery/robustness testing
+- [ ] Results: anti-correlated values analysis
+- [ ] Implications for CaML's fine-tuning approach
+- [ ] Fine-tuning comparison analysis scripts
 
 ---
 
@@ -183,19 +297,29 @@ automated feeding systems provide the highest output per square foot..."
 | Model for prototyping? | Llama 8B vs. 70B | 8B (faster iteration) |
 | Probe architecture? | Logistic regression vs. MLP | Start with LR |
 | Layer selection? | All vs. specific | Middle-to-late (layers 16-28 for 8B) |
+| Which CaML fine-tuned models? | Need to identify base→fine-tuned pairs | TBD |
+| Recovery testing approach? | Jailbreaks vs. adversarial prompts vs. both | TBD |
 
 ---
 
-## Timeline Summary
+## Timeline Summary (4-week capstone)
 
 | Week | Focus | Deliverable |
 |------|-------|-------------|
-| 1 | Infrastructure + Operationalization | StrongCompute automation, dimension mapping |
-| 2 | Contrastive pairs + Extraction | 100+ validated pairs, extraction pipeline |
-| 3 | Probe training | Working probes for 2-3 dimensions |
-| 4 | Validation + Scaling | AHB correlation, 70B experiments |
-| 5 | Anti-correlations | Value opposition analysis |
-| 6 | Documentation | Final report, code release |
+| 1 | Infrastructure + Scoping | StrongCompute setup, HF backup, operationalization discussion |
+| 2 | Linear probes + Literature | Initial probe results, literature comparison, Jasmine feedback, decision point |
+| 3 | Probe training + Validation | Trained probes, layer analysis, validation |
+| 4 | Documentation | Writeup, clean repo, probes artifact |
+
+**Week 1 status:** ~Done (infra complete, backup in progress, operationalization discussion started)
+
+**Week 2 decision point:** Stick with linear probes for week 3, or pivot to other mech interp methodology?
+
+**Post-capstone (continuing with CaML):**
+- Fine-tuning analysis (base vs. fine-tuned comparison)
+- Recovery/robustness testing
+- Anti-correlated values
+- Cross-model scaling
 
 ---
 
