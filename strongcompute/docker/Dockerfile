@@ -93,11 +93,9 @@ RUN pip install --no-cache-dir \
 # HuggingFace CLI (for model downloads)
 RUN pip install --no-cache-dir huggingface_hub[cli]
 
-# Flash Attention 2 (faster attention, essential for large models)
-# Install ninja for faster compilation, set arch for RTX 3090/4090
-RUN pip install --no-cache-dir ninja packaging
-ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
-RUN pip install --no-cache-dir flash-attn --no-build-isolation
+# Flash Attention 2 - install manually on StrongCompute after container starts:
+#   pip install ninja packaging && pip install flash-attn --no-build-isolation
+# (Compiles faster with GPU present, avoids CI timeout)
 
 # SSH setup for StrongCompute
 RUN mkdir -p /var/run/sshd \
