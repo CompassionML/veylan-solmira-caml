@@ -32,6 +32,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download flash-attn from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download ${{ github.event.inputs.flash_attn_version }} \
+            --pattern "flash-attn-*.tar.gz" \
+            --dir ./strongcompute/docker/
+          ls -lh ./strongcompute/docker/flash-attn-*.tar.gz
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -62,5 +71,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-          build-args: |
-            FLASH_ATTN_URL=https://github.com/CompassionML/veylan-solmira-caml/releases/download/${{ github.event.inputs.flash_attn_version }}/flash-attn-2.8.3-cuda128-sm80-90-100-120.tar.gz
