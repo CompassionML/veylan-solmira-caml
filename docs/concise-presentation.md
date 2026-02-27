@@ -1,26 +1,51 @@
 # Linear Probes for Compassion Measurement
 
 **Project:** Mechanistic measurement of compassion in LLM activations
-**Status:** Initial probing complete, validation in progress
 **Date:** February 27, 2026
 
 ---
 
-## 1. Infrastructure
+## The 2-Minute Pitch
 
-We set up compute on StrongCompute Sydney to run activation extraction and probe training:
+**Problem:** We train LLMs to be compassionate, but we can't see inside them. Current evaluation relies on output scoring (the Animal Harm Benchmark), which tells us *what* a model says but not *whether it means it*. A model could game the benchmark without genuine value alignment.
 
-| Component | Specification |
-|-----------|---------------|
-| GPU | NVIDIA RTX 3090 Ti (24GB VRAM) |
-| Model | Llama 3.1 8B Instruct (~16GB) |
-| Container | Custom Docker with Flash Attention 2 |
+**Solution:** Linear probes that detect compassion directly in model activations. Instead of scoring outputs, we measure internal representations — giving us a window into whether compassion training actually changes how the model thinks.
 
-Scripts for extraction (`extract.py`) and training (`train.py`) in `experiments/linear-probes/src/`.
+**Result:** A probe trained on 105 contrastive pairs achieves 95.2% accuracy distinguishing compassionate from non-compassionate responses. Unexpectedly, compassion is encoded earliest (layer 8, 25% depth), not late as steering literature suggests.
+
+**Why it matters:**
+1. **Validation tool** — Test if fine-tuning genuinely shifts representations or just suppresses outputs
+2. **Early warning** — Detect if a model "knows" the compassionate answer but isn't giving it
+3. **Mechanistic insight** — Compassion appears to be a "surface" feature (tone, framing) not deep reasoning
+
+**Next step:** Validate the probe with negative controls and correlate with AHB scores.
 
 ---
 
-## 2. Approach: Contrastive Pairs
+## Why This Work Matters
+
+| Stakeholder | Value Proposition |
+|-------------|-------------------|
+| **CaML team** | Validate that compassion fine-tuning changes representations, not just outputs |
+| **Safety researchers** | Detect misalignment between internal state and external behavior |
+| **Interpretability field** | Novel finding: optimal probe layer contradicts steering heuristics |
+
+**The core insight:** Output benchmarks can be gamed. Internal probes cannot (as easily). This work bridges behavioral evaluation with mechanistic understanding.
+
+---
+
+## Anticipated Questions
+
+| Challenge | Response |
+|-----------|----------|
+| "Isn't 95% accuracy just detecting writing style?" | Possible — that's why we need negative controls and confound ablation. But even if partially stylistic, the probe still detects *something* that correlates with compassionate outputs. |
+| "Why does early-layer encoding matter?" | It suggests compassion is a "surface" feature. If fine-tuning only affects late layers, the compassionate behavior might be fragile. |
+| "Can't you just use the benchmark?" | Benchmarks measure outputs, not internals. A model could produce compassionate text without internal alignment — this probe would detect that gap. |
+| "How does this help CaML?" | CaML fine-tunes for compassion. This probe can validate whether training actually shifts representations, or just teaches the model to say the right things. |
+
+---
+
+## 1. Approach: Contrastive Pairs
 
 We trained probes using **contrastive activation analysis**: extract activations from compassionate vs. non-compassionate responses to the same question, then learn a direction that separates them.
 
@@ -47,7 +72,7 @@ Logistic regression with L2 regularization on hidden states → P(compassionate)
 
 ---
 
-## 3. Results
+## 2. Results
 
 ### Key Finding
 
@@ -70,7 +95,7 @@ Compassion appears to be a "surface" feature — encoded early in the model's re
 
 ---
 
-## 4. Operationalization of Compassion
+## 3. Operationalization + Caveats
 
 ### What We're Measuring
 
@@ -103,7 +128,7 @@ AHB defines compassion → Claude generates pairs → Probe learns pattern
 
 ---
 
-## 5. Next Steps
+## 4. Next Steps
 
 ### Immediate: Validate the Probe
 
@@ -138,11 +163,4 @@ AHB defines compassion → Claude generates pairs → Probe learns pattern
 
 ---
 
-## 6. Contacts
-
-- **Raphael** — Reached out re: activation selection methodology
-- **Claire** — Research manager, MATS
-
----
-
-*See full details in `docs/presentation.md` and `roadmap.md`*
+*Full details: `docs/presentation.md` | Roadmap: `roadmap.md`*
