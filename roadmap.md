@@ -23,11 +23,26 @@
 
 ---
 
+## Key Findings (as of Week 3)
+
+| Finding | Details |
+|---------|---------|
+| **Optimal layer** | Layer 8 (25% depth) — contradicts ~75% heuristic from literature |
+| **Probe accuracy** | 95.2% accuracy, 0.995 AUROC at layer 8 |
+| **Layer trend** | Performance decreases monotonically with depth |
+| **Direction similarity** | Diff-means and logistic regression converge most at layer 16 (0.871), but layer 8 has best discrimination |
+
+**Interpretation:** Compassion appears to be a "surface" feature encoded early in the model's representations (tone, framing, word choice), before deeper semantic processing blends it with content.
+
+---
+
 ## Key Open Questions
 
-1. **Operationalization of compassion** — How exactly are we defining/measuring it?
-2. **Linear probe methodology** — What do probes actually provide? How to acquire/generate?
-3. **What models to probe?** — Base Llama? CaML fine-tuned? Both?
+1. ~~**Operationalization of compassion** — How exactly are we defining/measuring it?~~ → Resolved: contrastive pairs from AHB scenarios
+2. ~~**Linear probe methodology** — What do probes actually provide? How to acquire/generate?~~ → Resolved: logistic regression on activation differences
+3. **What models to probe?** — Base Llama? CaML fine-tuned? Both? → Next: compare base vs fine-tuned
+4. **Why does compassion live early?** — Need to validate with earlier layers (4, 6) and other models
+5. *(Future)* **Does probing optimal = steering optimal?** — Steering experiments on hold; focus is measurement
 
 ---
 
@@ -58,7 +73,7 @@
   - [x] Imported to StrongCompute via Control Plane
 - [x] Document process in `strongcompute/CUSTOM-IMAGES.md`
 - [x] Launch container: `caml-probes-2026-02`
-- [ ] Install flash-attn (compiling now ~20-40 min)
+- [x] Install flash-attn (pre-compiled wheel from GitHub releases)
 - [ ] Squash and save container (`isc container stop --squash`)
 
 **Environment verified:**
@@ -199,8 +214,8 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 - [x] Identify what "compassion training" these models received
   - sdf = Synthetic Document Finetuning (core CaML method)
   - 3kv3 = 3000 synthetic compassion documents, version 3
-- [x] **Bonus:** Downloaded existing persona vectors (compassion at layers 12 & 20)
-  - Finding: Layer 12 and 20 vectors are nearly orthogonal (cos_sim=0.007)
+- [x] Downloaded existing CaML persona vectors (layers 12 & 20) for reference
+  - Note: These layers are suboptimal per our findings (layer 8 is best)
   - Scripts: `scripts/inventory-models.py`, `scripts/download_persona_vectors.py`
 
 **CaML HuggingFace assets:** 197 models including fine-tuned Llama variants
@@ -219,63 +234,62 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 
 **Goal:** Determine best probe methodology before full-scale development.
 
-**Context:** Two main approaches exist:
-1. **Contrastive Pairs (CAA)** — Established method, we have 113 pairs
-2. **Persona Prompts (Assistant Axis)** — Newer, avoids refusal issues
+**Approach chosen:** Contrastive Pairs (CAA) — 105 pairs, 95.2% accuracy at layer 8.
 
-See `docs/probe-methods.md` for full methodology comparison.
+See `docs/probe-methods.md` for methodology comparison with alternatives.
 
-#### Experiment 1: Contrastive Pairs Baseline (~2-3 hours)
-- [ ] Load Llama 3.1 8B on StrongCompute
-- [ ] Extract activations for 113 contrastive pairs at layers 12, 20, 24
-- [ ] Compute direction: `mean(compassionate) - mean(non_compassionate)`
-- [ ] Train logistic probe on 80/20 split
-- [ ] Report accuracy per layer
+#### Experiment 1: Contrastive Pairs Baseline ✅
+- [x] Load Llama 3.1 8B on StrongCompute
+- [x] Extract activations for 105 contrastive pairs at layers 8, 12, 16, 20, 24, 28
+- [x] Compute direction: `mean(compassionate) - mean(non_compassionate)`
+- [x] Train logistic probe on 80/20 split
+- [x] Report accuracy per layer
 
-**Input:** `data/contrastive-pairs/usable_consolidated.jsonl`
+**Input:** `data/contrastive-pairs/usable_pairs_deduped.jsonl` (105 pairs)
 
-#### Experiment 2: Persona Prompts Comparison (~2-3 hours)
-- [ ] Create 5 compassionate + 5 non-compassionate persona system prompts
-- [ ] Run same AHB questions through each persona
-- [ ] Extract activations, compute direction same way
-- [ ] Compare to Experiment 1 direction (cosine similarity)
+**Key Result:** Layer 8 (25% depth) achieves 95.2% accuracy, 0.995 AUROC — contradicting ~75% depth heuristic from literature. Performance decreases monotonically with depth.
 
-**Personas to test:**
-- Compassionate: ethical advisor, animal welfare advocate, suffering-focused
-- Non-compassionate: efficiency consultant, traditional carnist, profit-maximizer
-
-#### Experiment 3: Cross-Validation (~1 hour)
-- [ ] Use contrastive direction to score persona responses
-- [ ] Use persona direction to score contrastive responses
-- [ ] Analyze: Do both directions predict same outcomes?
-
-**Decision criteria:**
-| Result | Interpretation | Action |
-|--------|----------------|--------|
-| High cosine sim + both predict well | Measuring same construct | Use either (contrastive has more data) |
-| Low cosine sim + contrastive better | Persona captures role-play not values | Use contrastive |
-| Low cosine sim + persona better | Contrastive has noise/confounds | Use persona |
-| Both poor | Need different approach | Revisit methodology |
 
 ---
 
 ## Phase 2: Probe Development (Week 2-4)
 
-### 2.1 Activation Extraction Pipeline
-- [ ] Set up extraction for Llama 3.1 8B (prototype)
-- [ ] Extract activations at multiple layers (focus on middle-to-late)
-- [ ] Store activations efficiently (memory-mapped files or HDF5)
+### 2.1 Activation Extraction Pipeline ✅
+- [x] Set up extraction for Llama 3.1 8B (prototype)
+- [x] Extract activations at multiple layers (8, 12, 16, 20, 24, 28)
+- [x] Store activations efficiently (PyTorch .pt files per layer)
+- [x] Create tmux-based job runner for persistent experiments (`strongcompute/run-job.sh`)
 
-### 2.2 Train Linear Probes
-- [ ] Implement logistic regression probe (baseline)
-- [ ] Train per-dimension probes
-- [ ] Evaluate: accuracy, AUROC, calibration
-- [ ] Layer analysis: where does compassion "live"?
+**Scripts:** `experiments/linear-probes/src/extract.py`
 
-### 2.3 Validate Probes
-- [ ] Cross-validate on held-out pairs
+**Note:** Initial extraction used 50% token heuristic. Updated to compute exact response token boundaries — re-extraction pending.
+
+### 2.2 Train Linear Probes ✅
+- [x] Implement logistic regression probe (baseline)
+- [x] Train overall compassion probe (not per-dimension yet)
+- [x] Evaluate: accuracy, AUROC, calibration
+- [x] Layer analysis: where does compassion "live"?
+
+**Scripts:** `experiments/linear-probes/src/train.py`
+
+**Key Finding:** Compassion is best detected at layer 8 (25% depth), not ~75% as literature suggests. Performance decreases monotonically with depth.
+
+| Layer | Depth | Accuracy | AUROC |
+|-------|-------|----------|-------|
+| 8 | 25% | 95.2% | 0.995 |
+| 12 | 38% | 92.9% | 0.964 |
+| 16 | 50% | 90.5% | 0.957 |
+| 20 | 63% | 90.5% | 0.914 |
+| 24 | 75% | 88.1% | 0.909 |
+| 28 | 88% | 88.1% | 0.891 |
+
+### 2.3 Validate Probes (In Progress)
+- [x] Cross-validate on held-out pairs (5-fold CV)
+- [ ] Re-extract with exact response boundaries
+- [ ] Test earlier layers (4, 6) to confirm trend
 - [ ] Test on AHB scenarios (probe score vs. AHB output score)
 - [ ] Check for confounds (length, topic, style)
+- [ ] Multiple random seeds for stability
 
 ---
 
@@ -361,16 +375,43 @@ See `docs/probe-methods.md` for full methodology comparison.
 
 ---
 
-## Key Decisions (To Discuss with Jasmine)
+## Future: Alternative Methodologies
+
+*On hold — contrastive pairs achieved 95.2% accuracy. These alternatives may be worth exploring if we hit limitations with the current approach.*
+
+### Persona Prompts (Assistant Axis)
+
+Instead of generating contrastive response pairs, use persona system prompts to elicit different behaviors:
+- Compassionate personas: ethical advisor, animal welfare advocate, suffering-focused
+- Non-compassionate personas: efficiency consultant, traditional perspectives
+
+**Potential advantages:**
+- Avoids refusal issues when generating non-compassionate content
+- May capture "intent" rather than just output style
+
+**Why deprioritized:** Contrastive pairs work well; persona approach may capture role-play rather than genuine value differences.
+
+See: `docs/probe-methods.md` for full comparison.
+
+### Activation Steering
+
+Apply learned directions to modify model behavior (CAA-style intervention).
+
+**Why deprioritized:** Current focus is measurement, not intervention. Steering experiments moved to Appendix A in presentation.
+
+---
+
+## Key Decisions
 
 | Question | Options | Decision |
 |----------|---------|----------|
-| Which AHB dimensions first? | All 13 vs. top 3 | TBD |
-| Model for prototyping? | Llama 8B vs. 70B | 8B (faster iteration) |
-| Probe architecture? | Logistic regression vs. MLP | Start with LR |
-| Layer selection? | All vs. specific | Middle-to-late (layers 16-28 for 8B) |
-| Which CaML fine-tuned models? | Need to identify base→fine-tuned pairs | TBD |
-| Recovery testing approach? | Jailbreaks vs. adversarial prompts vs. both | TBD |
+| Which AHB dimensions first? | All 13 vs. top 3 | Overall compassion first (done), dimension-specific later |
+| Model for prototyping? | Llama 8B vs. 70B | ✅ 8B (faster iteration) |
+| Probe architecture? | Logistic regression vs. MLP | ✅ Logistic regression (works well) |
+| Layer selection? | All vs. specific | ✅ Tested 8-28; **layer 8 optimal** (not middle-to-late!) |
+| Activation selection? | Last token vs. mean-pool response | ✅ Mean-pool over exact response tokens |
+| Which CaML fine-tuned models? | Need to identify base→fine-tuned pairs | Next: `Basellama` → `Basellama_plus3kv3_plus5kalpaca` |
+| Recovery testing approach? | Jailbreaks vs. adversarial prompts vs. both | TBD (post-capstone) |
 
 ---
 
@@ -383,9 +424,19 @@ See `docs/probe-methods.md` for full methodology comparison.
 | 3 | Probe training + Validation | Trained probes, layer analysis, validation |
 | 4 | Documentation | Writeup, clean repo, probes artifact |
 
-**Week 1 status:** ~Done (infra complete, backup in progress, operationalization discussion started)
+**Week 1 status:** ✅ Done (infra complete, backup complete, operationalization documented)
 
-**Week 2 decision point:** Stick with linear probes for week 3, or pivot to other mech interp methodology?
+**Week 2 status:** ✅ Done (multi-layer probe results, key finding: layer 8 optimal)
+
+**Week 3 status:** 🔄 In Progress
+- [x] Layer analysis complete (8, 12, 16, 20, 24, 28)
+- [x] Visualizations generated
+- [x] Interpretation documented
+- [ ] Re-extract with exact response boundaries
+- [ ] Earlier layers (4, 6) to confirm trend
+- [ ] AHB validation
+
+**Week 4 (upcoming):** Documentation + validation
 
 **Post-capstone (continuing with CaML):**
 - Fine-tuning analysis (base vs. fine-tuned comparison)
