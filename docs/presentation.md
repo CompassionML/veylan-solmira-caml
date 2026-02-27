@@ -96,7 +96,16 @@ Contrastive pairs generated via Claude with historical framing (v4 prompt):
 | Success rate | 85% (vs 10% with direct prompting) |
 | Format | `{question, compassionate_response, non_compassionate_response}` |
 
-### 2.3 Probe Architecture
+### 2.3 Activation Selection
+
+| Choice | Our Approach |
+|--------|--------------|
+| **Token selection** | Mean-pool over exact response tokens (excluding user prompt) |
+| **Alternatives** | Last token only, last period position, mean over full sequence |
+
+**Note:** Initial experiments used a 50% heuristic (last half of tokens). Updated to compute exact response boundaries — re-extraction pending.
+
+### 2.4 Probe Architecture
 
 ```
 Input: Hidden state at layer L (4096 dims for Llama 8B)
@@ -292,6 +301,7 @@ CaML HuggingFace organization analysis:
 
 | Experiment | Description | Priority |
 |------------|-------------|----------|
+| Re-extract with exact boundaries | Current results used 50% heuristic; updated `extract.py` now computes exact response token boundaries. Re-run extraction to use mean-pooling over response only (not prompt). | High |
 | Earlier layers | Extract & probe layers 4, 6 to confirm trend continues or peaks | High |
 | Multiple seeds | Re-run with different random seeds to check stability | High |
 | AHB validation | Test probe on held-out AHB evaluation prompts | High |

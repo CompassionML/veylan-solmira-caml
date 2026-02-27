@@ -1,6 +1,9 @@
 """
 Activation extraction for compassion probes.
 
+Extracts hidden state activations and mean-pools over the exact response tokens
+(not the user prompt). This provides a single vector per response for probing.
+
 Usage:
     # Standard mode (multiple layers)
     python extract.py \
@@ -69,11 +72,15 @@ def extract_activation_with_hook(
     tokenizer,
     text: str,
     layer: int,
-    response_fraction: float = 0.5
+    response_start_idx: int = 0
 ) -> torch.Tensor:
     """
     Extract mean-pooled activation using hooks (memory efficient).
     Only captures the specific layer requested.
+
+    Args:
+        response_start_idx: Token index where the response begins.
+                           Activations are mean-pooled from this index onward.
     """
     tokens = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
     tokens = {k: v.to(model.device) for k, v in tokens.items()}
@@ -86,9 +93,7 @@ def extract_activation_with_hook(
             model(**tokens)
 
         activation = capture.get_activation()  # (1, seq, hidden)
-        seq_len = activation.shape[1]
-        response_start = int(seq_len * (1 - response_fraction))
-        response_acts = activation[0, response_start:, :]
+        response_acts = activation[0, response_start_idx:, :]
 
         return response_acts.mean(dim=0).cpu()
     finally:
@@ -100,10 +105,14 @@ def extract_activation_standard(
     tokenizer,
     text: str,
     layer: int,
-    response_fraction: float = 0.5
+    response_start_idx: int = 0
 ) -> torch.Tensor:
     """
     Extract activation using output_hidden_states (simpler but uses more memory).
+
+    Args:
+        response_start_idx: Token index where the response begins.
+                           Activations are mean-pooled from this index onward.
     """
     tokens = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
     tokens = {k: v.to(model.device) for k, v in tokens.items()}
@@ -112,22 +121,38 @@ def extract_activation_standard(
         outputs = model(**tokens, output_hidden_states=True)
         activation = outputs.hidden_states[layer]  # (1, seq, hidden)
 
-    seq_len = activation.shape[1]
-    response_start = int(seq_len * (1 - response_fraction))
-    response_acts = activation[0, response_start:, :]
+    response_acts = activation[0, response_start_idx:, :]
 
     return response_acts.mean(dim=0).cpu()
 
 
-def format_conversation(pair: dict, response_type: str, tokenizer) -> str:
-    """Format a conversation for the model."""
+def format_conversation(pair: dict, response_type: str, tokenizer) -> tuple[str, int]:
+    """
+    Format a conversation for the model and compute response start index.
+
+    Returns:
+        tuple: (formatted_text, response_start_idx)
+               response_start_idx is the token index where the assistant response begins
+    """
     # Support both 'prompt' and 'question' keys
     user_content = pair.get("prompt") or pair.get("question")
+
+    # Get the prompt-only portion to find where response starts
+    prompt_only = [
+        {"role": "user", "content": user_content},
+    ]
+    prompt_text = tokenizer.apply_chat_template(prompt_only, tokenize=False, add_generation_prompt=True)
+    prompt_tokens = tokenizer(prompt_text, truncation=True, max_length=1024)
+    response_start_idx = len(prompt_tokens["input_ids"])
+
+    # Get the full conversation
     conversation = [
         {"role": "user", "content": user_content},
         {"role": "assistant", "content": pair[response_type]}
     ]
-    return tokenizer.apply_chat_template(conversation, tokenize=False)
+    full_text = tokenizer.apply_chat_template(conversation, tokenize=False)
+
+    return full_text, response_start_idx
 
 
 def extract_single_layer(
@@ -154,13 +179,13 @@ def extract_single_layer(
 
     for i, pair in enumerate(iterator):
         # Extract compassionate response activation
-        text_comp = format_conversation(pair, "compassionate_response", tokenizer)
-        act_comp = extract_fn(model, tokenizer, text_comp, layer)
+        text_comp, response_start_comp = format_conversation(pair, "compassionate_response", tokenizer)
+        act_comp = extract_fn(model, tokenizer, text_comp, layer, response_start_idx=response_start_comp)
         compassionate_acts.append(act_comp)
 
         # Extract non-compassionate response activation
-        text_non = format_conversation(pair, "non_compassionate_response", tokenizer)
-        act_non = extract_fn(model, tokenizer, text_non, layer)
+        text_non, response_start_non = format_conversation(pair, "non_compassionate_response", tokenizer)
+        act_non = extract_fn(model, tokenizer, text_non, layer, response_start_idx=response_start_non)
         non_compassionate_acts.append(act_non)
 
         # Clear cache periodically
@@ -198,8 +223,6 @@ def main():
                         help="Pairs to process before clearing CUDA cache")
     parser.add_argument("--memory-efficient", action="store_true",
                         help="Use hook-based extraction (less memory, same speed)")
-    parser.add_argument("--response-fraction", type=float, default=0.5,
-                        help="Fraction of tokens to use as 'response' (from end)")
     parser.add_argument("--estimate-only", action="store_true",
                         help="Only estimate time, don't run extraction")
     args = parser.parse_args()
@@ -273,7 +296,7 @@ def main():
             "non_compassionate": activations["non_compassionate"],
             "n_pairs": len(pairs),
             "model": args.model,
-            "response_fraction": args.response_fraction,
+            "pooling": "mean_over_response",  # exact response tokens only
         }, output_path)
 
         layer_time = time.time() - layer_start
