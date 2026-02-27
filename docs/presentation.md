@@ -75,15 +75,16 @@ HuggingFace model backup automated:
 
 ## 2. Methodology
 
-### 2.1 Contrastive Activation Addition (CAA)
+### 2.1 Literature Context
 
-Based on recent literature (2025-2026):
+Our approach draws on recent activation engineering literature (2025-2026):
 
-| Finding | Source |
-|---------|--------|
-| 80-100 samples optimal | [Patterns and Mechanisms of CAE](https://arxiv.org/html/2505.03189) |
-| ~75% layer depth best | [Activation Steering Field Guide](https://subhadipmitra.com/blog/2026/activation-steering-field-guide/) |
-| CAA outperforms ActAdd | Steering Llama 2 via CAA |
+| Finding | Source | Our Result |
+|---------|--------|------------|
+| 80-100 samples optimal | [Patterns and Mechanisms of CAE](https://arxiv.org/html/2505.03189) | Confirmed (105 pairs) |
+| ~75% layer depth best | [Activation Steering Field Guide](https://subhadipmitra.com/blog/2026/activation-steering-field-guide/) | **Contradicted** (25% optimal) |
+
+**Current focus:** Linear probing to measure compassion in activations. Steering experiments are future work (see Appendix A).
 
 ### 2.2 Training Data
 
@@ -295,15 +296,7 @@ CaML HuggingFace organization analysis:
 | Multiple seeds | Re-run with different random seeds to check stability | High |
 | AHB validation | Test probe on held-out AHB evaluation prompts | High |
 
-### 6.3 Steering Experiments
-
-| Experiment | Description | Priority |
-|------------|-------------|----------|
-| Layer 8 steering | Apply layer 8 direction via CAA, measure AHB score change | Medium |
-| Layer comparison | Compare steering effectiveness at layers 8 vs 12 vs 20 | Medium |
-| Strength sweep | Test different steering multipliers (0.5x, 1x, 2x, 3x) | Medium |
-
-### 6.4 Model Comparisons
+### 6.3 Model Comparisons
 
 | Experiment | Description | Priority |
 |------------|-------------|----------|
@@ -311,12 +304,11 @@ CaML HuggingFace organization analysis:
 | Persona vectors | Test CaML's existing layer 12/20 vectors on our probe | Medium |
 | Cross-model | Test if layer 8 is also optimal on Llama 70B | Low |
 
-### 6.5 Questions for CaML Team
+### 6.4 Questions for CaML Team
 
 1. What were the "mixed results" with persona vectors?
 2. Which method was used to compute the existing persona vectors?
 3. What do "medai", "negai", "fullai" suffixes mean in model names?
-4. **New:** Have you observed layer-dependent effects in steering experiments?
 
 ---
 
@@ -363,6 +355,21 @@ caml-research/
 - [Activation Steering Field Guide 2026](https://subhadipmitra.com/blog/2026/activation-steering-field-guide/)
 - [Steering Llama 2 via CAA](https://arxiv.org/html/2312.06681v2)
 - [The Assistant Axis (Lu et al. 2026)](https://arxiv.org/) — Persona prompt methodology
+
+---
+
+## Appendix A: Future Steering Experiments (Low Priority)
+
+Activation steering is out of scope for the current probing work, but these experiments may be relevant once probing is validated:
+
+| Experiment | Description | Notes |
+|------------|-------------|-------|
+| Layer 8 steering | Apply layer 8 direction via CAA, measure AHB score change | Test if probing optimal = steering optimal |
+| Layer comparison | Compare steering effectiveness at layers 8 vs 12 vs 20 | Compare against CaML's existing vectors |
+| Strength sweep | Test different steering multipliers (0.5x, 1x, 2x, 3x) | Find optimal intervention strength |
+| Behavioral validation | Measure actual response changes, not just AHB scores | Qualitative analysis |
+
+**Key question:** Does the optimal layer for *probing* (classification) match the optimal layer for *steering* (intervention)?
 
 ---
 
