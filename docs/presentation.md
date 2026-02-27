@@ -153,19 +153,19 @@ Performance vs layer depth shows monotonic decrease:
 
 ![Performance vs Depth](figures/performance_vs_depth.png)
 
-#### Projection Distribution (Layer 24)
+#### Projection Distribution (Layer 8 — Best)
 
 The probe successfully separates compassionate from non-compassionate responses in activation space:
 
 ![Projection Distribution](figures/projection_distribution.png)
 
-**d' (discriminability) = 3.56** — Strong separation between classes.
+**d' (discriminability) = 4.52** — Excellent separation between classes (higher than Layer 24's 3.56).
 
-#### ROC Curve (Layer 24)
+#### ROC Curve (Layer 8)
 
 ![ROC Curve](figures/roc_curve.png)
 
-#### Confusion Matrix (Layer 24)
+#### Confusion Matrix (Layer 8)
 
 ![Confusion Matrix](figures/confusion_matrix.png)
 
@@ -184,7 +184,7 @@ The two methods (difference-in-means vs logistic regression) show interesting pa
 
 ![Direction Similarity](figures/direction_similarity.png)
 
-**Observation:** Direction similarity peaks at layer 16, but probe accuracy peaks at layer 8. This suggests that while the two methods converge most at mid-depth, the actual discriminative information is stronger in earlier layers.
+**Observation:** Direction similarity peaks at layer 16 (0.871), but probe accuracy peaks at layer 8. This divergence suggests that method convergence does not predict discriminative power — the strongest signal is in earlier layers where the methods agree less.
 
 ### 3.5 Timing
 
