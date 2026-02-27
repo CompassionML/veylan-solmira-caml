@@ -2,7 +2,7 @@
 
 **Project:** Mechanistic interpretability-grounded measurement of compassion in LLMs
 **Date:** February 26, 2026
-**Status:** Initial smoke test complete
+**Status:** Multi-layer experiment complete
 
 ---
 
@@ -10,7 +10,7 @@
 
 We are developing linear probes to measure compassion in LLM activations, supplementing the Animal Harm Benchmark (AHB) with internal representation analysis. This document summarizes infrastructure setup, methodology, and initial results.
 
-**Key Result:** A linear probe trained on layer 24 of Llama 3.1 8B achieves **88.1% accuracy** distinguishing compassionate from non-compassionate responses.
+**Key Result:** A linear probe trained on layer 8 of Llama 3.1 8B achieves **95.2% accuracy** and **0.995 AUROC** distinguishing compassionate from non-compassionate responses — optimal layer is at 25% depth, contradicting the ~75% depth heuristic from the literature.
 
 ---
 
@@ -111,30 +111,49 @@ Two direction extraction methods:
 
 ---
 
-## 3. Initial Results
+## 3. Results
 
-### 3.1 Smoke Test Configuration
+### 3.1 Experiment Configuration
 
 | Parameter | Value |
 |-----------|-------|
 | Model | Llama 3.1 8B Instruct |
-| Layer | 24 (75% of 32 layers) |
+| Layers tested | 8, 12, 16, 20, 24, 28 (25%–88% depth) |
 | Pairs | 105 |
 | Train/Test Split | 80/20 |
 | Cross-validation | 5-fold |
 
-### 3.2 Probe Performance
+### 3.2 Multi-Layer Probe Performance
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Test Accuracy** | 88.1% | On held-out 20% |
-| **AUROC** | 0.909 | Excellent discrimination |
-| **CV Accuracy** | 98.1% ± 2.8% | Very stable across folds |
-| **Random Control** | 59.5% | Near 50% baseline ✓ |
+| Layer | Depth | Accuracy | AUROC | CV Accuracy | Dir. Similarity |
+|-------|-------|----------|-------|-------------|-----------------|
+| **8** | **25%** | **95.2%** | **0.995** | 97.1% ± 2.8% | 0.793 |
+| 12 | 38% | 92.9% | 0.964 | 98.1% ± 1.8% | 0.846 |
+| 16 | 50% | 90.5% | 0.957 | 98.1% ± 2.8% | 0.871 |
+| 20 | 63% | 90.5% | 0.914 | 98.1% ± 2.8% | 0.736 |
+| 24 | 75% | 88.1% | 0.909 | 98.1% ± 2.8% | 0.652 |
+| 28 | 88% | 88.1% | 0.891 | 97.1% ± 2.3% | 0.572 |
+
+**Key Findings:**
+- **Layer 8 (25% depth) is optimal** — strongly contradicting the ~75% depth heuristic
+- Accuracy and AUROC decrease monotonically with depth (95.2%→88.1%, 0.995→0.891)
+- Direction similarity peaks at layer 16 (0.871) but doesn't correlate with best accuracy
+- This suggests compassion is encoded early in the model's representations
+- Random label controls all near 50% baseline as expected
 
 ### 3.3 Visualizations
 
-#### Projection Distribution
+#### Layer Comparison
+
+Performance metrics across all tested layers:
+
+![Layer Comparison](figures/layer_comparison.png)
+
+Performance vs layer depth shows monotonic decrease:
+
+![Performance vs Depth](figures/performance_vs_depth.png)
+
+#### Projection Distribution (Layer 24)
 
 The probe successfully separates compassionate from non-compassionate responses in activation space:
 
@@ -142,40 +161,90 @@ The probe successfully separates compassionate from non-compassionate responses 
 
 **d' (discriminability) = 3.56** — Strong separation between classes.
 
-#### ROC Curve
+#### ROC Curve (Layer 24)
 
 ![ROC Curve](figures/roc_curve.png)
 
-#### Confusion Matrix
+#### Confusion Matrix (Layer 24)
 
 ![Confusion Matrix](figures/confusion_matrix.png)
 
 ### 3.4 Direction Analysis
 
-| Metric | Value |
-|--------|-------|
-| DiffMeans-Probe cosine similarity | 0.652 |
+The two methods (difference-in-means vs logistic regression) show interesting patterns:
+
+| Layer | DiffMeans-Probe Cosine Similarity |
+|-------|-----------------------------------|
+| 8 | 0.793 |
+| 12 | 0.846 |
+| 16 | 0.871 (peak) |
+| 20 | 0.736 |
+| 24 | 0.652 |
+| 28 | 0.572 |
 
 ![Direction Similarity](figures/direction_similarity.png)
 
-The two methods (difference-in-means vs logistic regression) produce partially aligned directions, suggesting convergent evidence for a "compassion direction" in activation space.
+**Observation:** Direction similarity peaks at layer 16, but probe accuracy peaks at layer 8. This suggests that while the two methods converge most at mid-depth, the actual discriminative information is stronger in earlier layers.
 
 ### 3.5 Timing
 
 | Step | Time |
 |------|------|
 | Model loading | ~15s |
-| Extraction (105 pairs × 1 layer) | 28s |
-| Probe training | ~3 min |
-| **Total pipeline** | **~4 min** |
-
-Extrapolation for full experiment:
-- 4 layers (16, 20, 24, 28): ~6 min extraction + training
-- All 32 layers: ~20 min
+| Extraction (105 pairs × 6 layers) | ~3 min |
+| Probe training (6 layers) | ~25 min |
+| **Total pipeline** | **~30 min** |
 
 ---
 
-## 4. Model Inventory
+## 4. Interpretation
+
+### 4.1 Why Earlier Layers Perform Better
+
+The monotonic decrease in probe accuracy with layer depth is a striking finding that contradicts the ~75% depth heuristic from the literature. Several hypotheses may explain this:
+
+#### Compassion as a "Surface" Feature
+
+The model may encode compassion-relevant signals early — tone, framing, word choice. These stylistic markers are most distinct in early layers before deeper semantic processing blends them with other content.
+
+#### Later Layers Focus on Generation Mechanics
+
+Deeper layers increasingly optimize for next-token prediction. The "compassion signal" may get diluted as the model computes task-specific features for text generation rather than content classification.
+
+#### Shared Semantic Content Drowns Out Differences
+
+Both compassionate and non-compassionate responses answer the same question. Deeper layers may increasingly encode *what* is being said (shared content) rather than *how* it's being said (the compassion difference).
+
+### 4.2 Direction Similarity Paradox
+
+| Layer | Accuracy | AUROC | Dir. Similarity |
+|-------|----------|-------|-----------------|
+| 8 | 95.2% | 0.995 | 0.793 |
+| 16 | 90.5% | 0.957 | 0.871 (peak) |
+
+The diff-means and logistic regression directions converge most at layer 16 (similarity = 0.871), but probe accuracy peaks at layer 8 (similarity = 0.793). This suggests:
+
+- **Convergence ≠ discriminative power** — methods agreeing doesn't mean the signal is strongest
+- **Layer 8 has higher variance but better separation** — the directions differ more but the classes are more separable
+
+### 4.3 Implications for CaML
+
+1. **Existing persona vectors may not be optimal** — CaML's vectors at layers 12 and 20 may underperform compared to earlier layers
+2. **Steering vs probing** — optimal layer for classification may differ from optimal layer for activation steering (to be tested)
+3. **Task-specific layer selection** — the ~75% heuristic may apply to refusal/honesty but not compassion
+
+### 4.4 Caveats
+
+| Limitation | Impact |
+|------------|--------|
+| Small sample (105 pairs) | Results may not generalize |
+| Single model (Llama 3.1 8B) | Layer dynamics may differ in other models |
+| Probing ≠ steering | Optimal probe layer may not be optimal steering layer |
+| Fixed random seed | Should verify with multiple seeds |
+
+---
+
+## 5. Model Inventory
 
 CaML HuggingFace organization analysis:
 
@@ -207,31 +276,51 @@ CaML HuggingFace organization analysis:
 
 ---
 
-## 5. Next Steps
+## 6. Next Steps
 
-### 5.1 Immediate
+### 6.1 Completed
 
-- [ ] Extract activations at layers 16, 20, 24, 28
-- [ ] Compare probe accuracy across layers
-- [ ] Validate against AHB evaluation scores
+- [x] Extract activations at layers 8, 12, 16, 20, 24, 28
+- [x] Compare probe accuracy across layers
+- [x] Identify optimal layer (**Layer 8 at 25% depth**)
+- [x] Set up tmux-based job runner for persistent experiments
+- [x] Generate multi-layer comparison visualizations
+- [x] Document interpretation of monotonic layer trend
 
-### 5.2 Methodology Comparison
+### 6.2 Immediate: Validate the Layer Trend
 
-| Experiment | Description |
-|------------|-------------|
-| Exp 1 | Test CaML persona vectors on AHB prompts |
-| Exp 2 | Model comparison (base vs fine-tuned activations) |
-| Exp 3 | Compare contrastive pairs vs persona prompt directions |
+| Experiment | Description | Priority |
+|------------|-------------|----------|
+| Earlier layers | Extract & probe layers 4, 6 to confirm trend continues or peaks | High |
+| Multiple seeds | Re-run with different random seeds to check stability | High |
+| AHB validation | Test probe on held-out AHB evaluation prompts | High |
 
-### 5.3 Questions for CaML Team
+### 6.3 Steering Experiments
+
+| Experiment | Description | Priority |
+|------------|-------------|----------|
+| Layer 8 steering | Apply layer 8 direction via CAA, measure AHB score change | Medium |
+| Layer comparison | Compare steering effectiveness at layers 8 vs 12 vs 20 | Medium |
+| Strength sweep | Test different steering multipliers (0.5x, 1x, 2x, 3x) | Medium |
+
+### 6.4 Model Comparisons
+
+| Experiment | Description | Priority |
+|------------|-------------|----------|
+| CaML fine-tuned | Compare base Llama vs CaML fine-tuned model activations | Medium |
+| Persona vectors | Test CaML's existing layer 12/20 vectors on our probe | Medium |
+| Cross-model | Test if layer 8 is also optimal on Llama 70B | Low |
+
+### 6.5 Questions for CaML Team
 
 1. What were the "mixed results" with persona vectors?
 2. Which method was used to compute the existing persona vectors?
 3. What do "medai", "negai", "fullai" suffixes mean in model names?
+4. **New:** Have you observed layer-dependent effects in steering experiments?
 
 ---
 
-## 6. File Structure
+## 7. File Structure
 
 ```
 caml-research/
@@ -254,6 +343,9 @@ caml-research/
 │       ├── train.py               # Probe training
 │       └── evaluate.py            # AHB evaluation
 ├── strongcompute/
+│   ├── connect.sh                 # SSH connection helper
+│   ├── run-job.sh                 # Tmux-based job runner
+│   ├── run-experiment.sh          # Experiment shortcuts
 │   └── docker/
 │       ├── Dockerfile             # Main image
 │       └── Dockerfile.base        # Base image
@@ -265,7 +357,7 @@ caml-research/
 
 ---
 
-## 7. References
+## 8. References
 
 - [Patterns and Mechanisms of Contrastive Activation Engineering](https://arxiv.org/html/2505.03189)
 - [Activation Steering Field Guide 2026](https://subhadipmitra.com/blog/2026/activation-steering-field-guide/)
