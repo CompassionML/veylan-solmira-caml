@@ -307,6 +307,34 @@ See `docs/probe-methods.md` for methodology comparison with alternatives.
 
 ---
 
+## Stretch / Post-Capstone: Address Operationalization Confounds
+
+**Key question:** Are we measuring compassion or confounds (style, era, Claude artifacts)?
+
+Our contrastive pairs are AHB-derived and Claude-generated, introducing potential circularity. These experiments would strengthen the validity of our operationalization.
+
+### Generalization Testing
+- [ ] Test probe on non-AHB compassion scenarios (human-focused ethical dilemmas)
+- [ ] Test on compassion scenarios from different domains (medical ethics, environmental)
+- [ ] Does high probe score predict compassionate behavior in novel contexts?
+
+### Confound Ablation
+- [ ] Generate modern-vs-modern pairs (same era, different compassion)
+- [ ] Compare probe direction: does it change significantly?
+- [ ] Train separate probe on ablated pairs, compare to original
+
+### Alternative Ground Truth
+- [ ] Obtain CaML's actual fine-tuning data (if available)
+- [ ] Train probe on fine-tuning examples as ground truth
+- [ ] Compare to our Claude-generated pairs — same direction?
+
+### Human Validation (Low Priority / Expensive)
+- [ ] Human-written contrastive pairs for subset of scenarios
+- [ ] Compare probe trained on human vs Claude pairs
+- [ ] Measure stylistic confound contribution
+
+---
+
 ## Stretch / Post-Capstone: Fine-tuning Analysis
 
 **Key question:** Does fine-tuning genuinely change internal representations, or just suppress non-compassionate defaults?
