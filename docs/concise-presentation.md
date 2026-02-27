@@ -5,43 +5,75 @@
 
 ---
 
+## Pitch Context
+
+| Question | Choice |
+|----------|--------|
+| **Target audience** | Technical AI researchers familiar with animal welfare alignment |
+| **What they already know** | Linear probes, activation steering, why compassion in AI matters |
+| **Core message** | We can detect compassion in activations; it lives earlier than expected |
+| **The ask** | Feedback on validation approach (not asking them to do anything) |
+
+---
+
 ## The 2-Minute Pitch
 
-**Problem:** We train LLMs to be compassionate, but we can't see inside them. Current evaluation relies on output scoring (the Animal Harm Benchmark), which tells us *what* a model says but not *whether it means it*. A model could game the benchmark without genuine value alignment.
+**The gap:** We train LLMs to be compassionate, but current evaluation (the Animal Harm Benchmark) only scores outputs. A model could produce compassionate text without internal alignment — and we'd never know.
 
-**Solution:** Linear probes that detect compassion directly in model activations. Instead of scoring outputs, we measure internal representations — giving us a window into whether compassion training actually changes how the model thinks.
+**What we built:** A linear probe that detects compassion directly in model activations. Instead of scoring what the model says, we measure how it represents the problem internally.
 
-**Result:** A probe trained on 105 contrastive pairs achieves 95.2% accuracy distinguishing compassionate from non-compassionate responses. Unexpectedly, compassion is encoded earliest (layer 8, 25% depth), not late as steering literature suggests.
+**What we found:**
+- 95.2% accuracy distinguishing compassionate from non-compassionate responses
+- Compassion is encoded at layer 8 (25% depth) — much earlier than the ~75% heuristic from steering literature
+- Signal decreases monotonically with depth
 
-**Why it matters:**
-1. **Validation tool** — Test if fine-tuning genuinely shifts representations or just suppresses outputs
-2. **Early warning** — Detect if a model "knows" the compassionate answer but isn't giving it
-3. **Mechanistic insight** — Compassion appears to be a "surface" feature (tone, framing) not deep reasoning
+**Why this matters for compassion training:** If fine-tuning only affects late layers, the compassion might be shallow — easily bypassed. This probe can detect whether training genuinely shifts representations or just teaches surface compliance.
 
-**Next step:** Validate the probe with negative controls and correlate with AHB scores.
+**What I'm doing next:** Validating the probe with negative controls (does it fire on non-compassion concepts?) and correlating probe scores with AHB scores on the same responses.
 
----
-
-## Why This Work Matters
-
-| Stakeholder | Value Proposition |
-|-------------|-------------------|
-| **CaML team** | Validate that compassion fine-tuning changes representations, not just outputs |
-| **Safety researchers** | Detect misalignment between internal state and external behavior |
-| **Interpretability field** | Novel finding: optimal probe layer contradicts steering heuristics |
-
-**The core insight:** Output benchmarks can be gamed. Internal probes cannot (as easily). This work bridges behavioral evaluation with mechanistic understanding.
+**[Optional ask]:** I'd value feedback on the validation approach — particularly ideas for negative controls that would convincingly show the probe measures compassion, not style.
 
 ---
 
-## Anticipated Questions
+## Why This Matters
 
-| Challenge | Response |
-|-----------|----------|
-| "Isn't 95% accuracy just detecting writing style?" | Possible — that's why we need negative controls and confound ablation. But even if partially stylistic, the probe still detects *something* that correlates with compassionate outputs. |
-| "Why does early-layer encoding matter?" | It suggests compassion is a "surface" feature. If fine-tuning only affects late layers, the compassionate behavior might be fragile. |
-| "Can't you just use the benchmark?" | Benchmarks measure outputs, not internals. A model could produce compassionate text without internal alignment — this probe would detect that gap. |
-| "How does this help CaML?" | CaML fine-tunes for compassion. This probe can validate whether training actually shifts representations, or just teaches the model to say the right things. |
+**For compassion training:** Validates whether fine-tuning genuinely shifts internal representations, or just teaches surface compliance.
+
+**For safety:** Detects gaps between internal state and external behavior — a model that "knows" the compassionate answer but doesn't give it.
+
+**For interpretability:** Novel finding that contradicts the ~75% layer heuristic — compassion is encoded early (25% depth).
+
+---
+
+## Key Rebuttals
+
+### "You trained on AHB questions — isn't this circular?"
+
+Yes, this is a real limitation. Our pairs are AHB-derived, so we can't claim to independently validate AHB.
+
+**What we can claim:** The probe detects AHB-style compassion in Llama's activations with high accuracy.
+
+**How we're addressing it:** Testing on non-AHB compassion scenarios (human-focused ethical dilemmas) to see if the probe generalizes beyond its training distribution.
+
+### "Isn't 95% accuracy just detecting Claude's writing style?"
+
+Possible. Both response types were generated by Claude, so stylistic artifacts could leak through. The 1950s framing also introduces era-specific vocabulary.
+
+**Why it's still useful:** Even if partially stylistic, the probe detects something that reliably correlates with compassionate outputs. That's still a useful signal.
+
+**How we're addressing it:** Training on modern-vs-modern pairs (same era, different compassion) to isolate style from substance.
+
+### "105 pairs is a small sample — will this generalize?"
+
+Fair concern. But: 95% accuracy on held-out test set across 108 diverse questions (15+ languages) suggests it's not overfitting to narrow patterns.
+
+**How we're addressing it:** Correlating probe scores with AHB benchmark scores on the same model outputs. If they track, the probe captures something meaningful.
+
+### "Why not just use the benchmark?"
+
+Benchmarks measure outputs. A model could game the benchmark without genuine alignment — saying the right thing without "meaning" it.
+
+**The probe's value:** It detects internal representations, not just surface behavior. If a model's activations don't shift along the compassion direction, fine-tuning may be shallow.
 
 ---
 
