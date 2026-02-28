@@ -3,6 +3,8 @@
 **Project:** Mechanistic measurement of compassion in LLM activations
 **Date:** February 27, 2026
 
+**One-liner:** A probe that detects compassion inside LLM activations with 95% accuracy — revealing it's encoded early (25% depth), not late as literature suggests.
+
 ---
 
 ## Pitch Context

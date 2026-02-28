@@ -1,0 +1,43 @@
+PROJECT: Linear Probes for Compassion Measurement
+
+Status: 95.2% accuracy probe at layer 8. Now need validation.
+
+---
+
+HIGH IMPACT + EASY (Do First)
+
+- Negative controls: Run probe on non-compassion text
+- AHB ↔ Probe correlation: Compare probe scores to benchmark
+- Re-extract with exact boundaries: Code ready, just run
+- Earlier layers (4, 6): Confirms monotonic trend
+
+HIGH IMPACT + HARD (Plan Carefully)
+
+- Non-AHB scenarios: Test probe outside training domain
+- Modern-vs-modern ablation: Same era, different compassion
+- CaML fine-tuned comparison: Does fine-tuning shift activations?
+- System prompt experiments: Persona → AHB performance
+
+LOW IMPACT + EASY (Fill-Ins)
+
+- Multiple random seeds: Confirms stability
+- Documentation: Write up methodology
+- Publish probes: HuggingFace artifact
+
+LOW IMPACT + HARD (Deprioritize)
+
+- Human-written pairs: Expensive, marginal gain
+- Correlated values: Interesting but tangential
+- CaML training data: Uncertain availability and value
+- Shard theory personas: Exploratory, not critical
+
+---
+
+KEY INSIGHT
+
+High-impact easy items are all validation (proving what we have). High-impact hard items are all generalization (expanding scope). Deprioritized items are expensive polish or tangential research.
+
+SEQUENCE
+
+This week: Negative controls → Re-extract → Earlier layers
+Next week: AHB correlation → Non-AHB scenarios → Documentation
