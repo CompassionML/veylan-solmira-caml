@@ -78,6 +78,18 @@ def generate_response(model, tokenizer, prompt: str, max_new_tokens: int = 256) 
     return response
 
 
+def compute_response_start_idx(prompt: str, tokenizer) -> int:
+    """
+    Compute the token index where the assistant response begins.
+    This matches the logic from extract.py's format_conversation().
+    """
+    # Create prompt-only conversation with generation prompt
+    prompt_only = [{"role": "user", "content": prompt}]
+    prompt_text = tokenizer.apply_chat_template(prompt_only, tokenize=False, add_generation_prompt=True)
+    prompt_tokens = tokenizer(prompt_text, truncation=True, max_length=1024)
+    return len(prompt_tokens["input_ids"])
+
+
 def extract_and_project(
     model,
     tokenizer,
@@ -87,7 +99,15 @@ def extract_and_project(
     layer: int,
     use_hooks: bool = True
 ) -> float:
-    """Extract activation and project onto compassion direction."""
+    """
+    Extract activation and project onto compassion direction.
+
+    Uses the same response token extraction logic as extract.py's format_conversation().
+    """
+    # Compute response start index using proper method (matches extract.py)
+    response_start_idx = compute_response_start_idx(prompt, tokenizer)
+
+    # Format full conversation
     conversation = [
         {"role": "user", "content": prompt},
         {"role": "assistant", "content": response}
@@ -111,10 +131,14 @@ def extract_and_project(
             outputs = model(**tokens, output_hidden_states=True)
             activations = outputs.hidden_states[layer]
 
-    # Response tokens (last 50%)
+    # Mean-pool over response tokens only (exact response start, not 50% heuristic)
     seq_len = activations.shape[1]
-    response_start = seq_len // 2
-    response_acts = activations[0, response_start:, :].mean(dim=0).cpu().numpy()
+
+    # Handle edge case where response_start_idx exceeds sequence length
+    if response_start_idx >= seq_len:
+        response_start_idx = max(0, seq_len - 10)  # Use last 10 tokens as fallback
+
+    response_acts = activations[0, response_start_idx:, :].mean(dim=0).cpu().numpy()
 
     projection = np.dot(response_acts, direction)
     return float(projection)
