@@ -239,13 +239,18 @@ norm = ||direction||
 
 **Goal:** Validate that the probe trained on synthetic contrastive pairs generalizes to measuring compassion in natural model outputs.
 
+**Probe used:** v5 style-based probe (`outputs/probes/compassion_probes.pt`, layer 8)
+- Trained on 105 contrastive pairs with 1950s-textbook vs modern-advocate framing
+- **Note:** This probe has known stylistic confounds (see minimal pairs analysis above)
+- TODO: Re-run with v7 style-controlled probe for comparison
+
 **Method:**
 1. Generate Llama 3.1 8B responses to all 108 AHB questions (excluding Control Questions)
 2. Grade each response using Claude on AHB's 12 dimensions (0.0-1.0 per dimension)
 3. Extract hidden states and project onto probe direction → probe score
 4. Correlate probe scores with AHB dimension scores
 
-#### Results
+#### Results (v5 Style-Based Probe)
 
 **Overall Correlation:**
 
@@ -254,7 +259,7 @@ norm = ||direction||
 | **Pearson r** | **0.457** | <0.0001 |
 | Spearman r | 0.365 | 0.0001 |
 
-**Interpretation:** MODERATE correlation — the probe captures real signal, not just training artifacts.
+**Interpretation:** MODERATE correlation — despite stylistic confounds, the probe captures real signal. However, this may partially reflect correlation between style and compassion in natural outputs (compassionate responses may naturally use more modern, empathetic language).
 
 **Per-Dimension Correlations (strongest):**
 
