@@ -1,0 +1,18 @@
+[
+  {
+    "layer": 8,
+    "last_token_vs_mean_pool": 0.60791015625
+  },
+  {
+    "layer": 12,
+    "last_token_vs_mean_pool": 0.55615234375
+  },
+  {
+    "layer": 16,
+    "last_token_vs_mean_pool": 0.6591796875
+  },
+  {
+    "layer": 20,
+    "last_token_vs_mean_pool": 0.630859375
+  }
+]

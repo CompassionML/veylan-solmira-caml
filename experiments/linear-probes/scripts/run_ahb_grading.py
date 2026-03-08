@@ -130,22 +130,46 @@ def grade_response(
     response: str,
     dimensions: dict,
     relevant_tags: list[str],
-    grader_model: str = "claude-sonnet-4-6"
+    grader_model: str = "claude-sonnet-4-6",
+    max_retries: int = 3
 ) -> dict:
-    """Grade a response using Claude."""
+    """Grade a response using Claude with retry logic."""
+    import time
 
     prompt = build_grading_prompt(question, response, dimensions, relevant_tags)
 
-    message = client.messages.create(
-        model=grader_model,
-        max_tokens=1024,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
+    for attempt in range(max_retries):
+        try:
+            message = client.messages.create(
+                model=grader_model,
+                max_tokens=1024,
+                timeout=120.0,  # 2 minute timeout
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            break
+        except Exception as e:
+            print(f"Warning: API call failed (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                time.sleep(5 * (attempt + 1))  # Backoff
+            else:
+                return {
+                    "dimension_scores": {tag: 0.0 for tag in relevant_tags if tag in dimensions},
+                    "reasoning": {"error": f"API failed after {max_retries} attempts: {e}"}
+                }
 
     # Parse the response
-    text = message.content[0].text
+    try:
+        if not message.content:
+            raise ValueError("Empty response from API")
+        text = message.content[0].text
+    except (IndexError, AttributeError, ValueError) as e:
+        print(f"Warning: API response error: {e}")
+        return {
+            "dimension_scores": {tag: 0.0 for tag in relevant_tags if tag in dimensions},
+            "reasoning": {"error": str(e), "raw_response": str(message)}
+        }
 
     # Extract JSON from the response
     try:

@@ -120,7 +120,7 @@ def extract_and_project(
     if response_start_idx >= seq_len:
         response_start_idx = max(0, seq_len - 10)  # Use last 10 tokens as fallback
 
-    response_acts = activations[0, response_start_idx:, :].mean(dim=0).cpu().numpy()
+    response_acts = activations[0, response_start_idx:, :].mean(dim=0).float().cpu().numpy()
 
     # Project onto direction
     projection = np.dot(response_acts, direction)
@@ -186,7 +186,7 @@ def main():
 
     direction = probes[layer]["direction_probe"]
     if isinstance(direction, torch.Tensor):
-        direction = direction.numpy()
+        direction = direction.float().numpy()  # Convert bfloat16 -> float32 for numpy
 
     # Load model
     print(f"\nLoading model: {args.model}")

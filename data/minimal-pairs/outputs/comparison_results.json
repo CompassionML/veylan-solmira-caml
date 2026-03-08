@@ -1,0 +1,14 @@
+[
+  {
+    "layer": 12,
+    "position": "last_token",
+    "cosine_similarity": 0.046467557549476624,
+    "interpretation": "Near orthogonal - directions measure different things"
+  },
+  {
+    "layer": 20,
+    "position": "last_token",
+    "cosine_similarity": -0.053082071244716644,
+    "interpretation": "Near orthogonal - directions measure different things"
+  }
+]

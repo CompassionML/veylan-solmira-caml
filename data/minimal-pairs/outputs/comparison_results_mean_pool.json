@@ -1,0 +1,14 @@
+[
+  {
+    "layer": 12,
+    "position": "mean_pool",
+    "cosine_similarity": 0.007081449031829834,
+    "interpretation": "Near orthogonal - directions measure different things"
+  },
+  {
+    "layer": 20,
+    "position": "mean_pool",
+    "cosine_similarity": -0.023326024413108826,
+    "interpretation": "Near orthogonal - directions measure different things"
+  }
+]
