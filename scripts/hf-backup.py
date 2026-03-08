@@ -37,6 +37,7 @@ import os
 import sys
 import tempfile
 import shutil
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -289,37 +290,70 @@ class HFBackup:
         except Exception:
             return 0
 
-    def get_repo_files(self, repo_id: str, repo_type: str = "model") -> dict:
-        """Get dict of {filename: size} for a repo, or None if not found."""
-        try:
-            if repo_type == "model":
-                info = self.api.model_info(repo_id, files_metadata=True)
-            elif repo_type == "dataset":
-                info = self.api.dataset_info(repo_id, files_metadata=True)
-            else:  # space
-                info = self.api.space_info(repo_id, files_metadata=True)
-            if info.siblings:
-                return {f.rfilename: f.size for f in info.siblings}
-            return {}
-        except RepositoryNotFoundError:
-            return None
-        except Exception:
-            return None
+    def get_repo_files(self, repo_id: str, repo_type: str = "model", max_retries: int = 3) -> dict:
+        """Get dict of {filename: sha} for a repo, or None if not found.
+
+        Uses SHA hashes for content comparison:
+        - LFS files (model weights): lfs.sha256
+        - Non-LFS files (configs, READMEs): blob_id (git blob SHA)
+        """
+        for attempt in range(max_retries):
+            try:
+                if repo_type == "model":
+                    info = self.api.model_info(repo_id, files_metadata=True)
+                elif repo_type == "dataset":
+                    info = self.api.dataset_info(repo_id, files_metadata=True)
+                else:  # space
+                    info = self.api.space_info(repo_id, files_metadata=True)
+                if info.siblings:
+                    result = {}
+                    for f in info.siblings:
+                        # LFS files have sha256 in lfs attribute, others use blob_id
+                        if f.lfs:
+                            sha = f.lfs.get("sha256")
+                        else:
+                            sha = getattr(f, 'blob_id', None)
+                        result[f.rfilename] = sha
+                    return result
+                return {}
+            except RepositoryNotFoundError:
+                return None
+            except Exception as e:
+                error_str = str(e)
+                # Check for rate limiting (429)
+                if "429" in error_str or "rate limit" in error_str.lower():
+                    # Try to extract wait time from error message
+                    wait_time = 30  # default
+                    if "Retry after" in error_str:
+                        try:
+                            import re
+                            match = re.search(r'Retry after (\d+)', error_str)
+                            if match:
+                                wait_time = int(match.group(1)) + 1
+                        except:
+                            pass
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Rate limited for {repo_id}, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                logger.warning(f"API error for {repo_id}: {type(e).__name__}: {e}")
+                return None
+        return None
 
     def backup_matches_source(self, source_id: str, repo_name: str, repo_type: str = "model") -> tuple:
-        """Check if backup exists and matches source. Returns (exists, matches, source_files)."""
+        """Check if backup exists and matches source. Returns (exists, matches, source_files, backup_files)."""
         backup_id = f"{BACKUP_ORG}/{repo_name}"
 
         source_files = self.get_repo_files(source_id, repo_type)
         if source_files is None:
-            return (False, False, None)
+            return (False, False, None, None)
 
         backup_files = self.get_repo_files(backup_id, repo_type)
         if backup_files is None:
-            return (False, False, source_files)
+            return (False, False, source_files, None)
 
         matches = (backup_files == source_files)
-        return (True, matches, source_files)
+        return (True, matches, source_files, backup_files)
 
     def backup_repo(self, repo_id: str, repo_type: str = "model") -> bool:
         """Backup a single repo (model or dataset) to the backup org."""
@@ -335,11 +369,11 @@ class HFBackup:
             self.stats['spaces_checked'] += 1
 
         # Check if already backed up AND matches source
-        exists, matches, source_files = self.backup_matches_source(repo_id, repo_name, repo_type)
+        exists, matches, source_files, backup_files = self.backup_matches_source(repo_id, repo_name, repo_type)
         needs_clean_sync = False
 
         if exists and matches:
-            size_bytes = sum(source_files.values()) if source_files else 0
+            size_bytes = self.get_repo_size(repo_id, repo_type)
             size_str = f"{size_bytes / (1024**3):.1f} GB" if size_bytes > 1024**3 else f"{size_bytes / (1024**2):.1f} MB"
             logger.info(f"  ⏭️  [{repo_type}] {repo_name}: Already backed up correctly ({size_str})")
             if repo_type == "model":
@@ -350,11 +384,21 @@ class HFBackup:
                 self.stats['spaces_skipped'] += 1
             return True
         elif exists and not matches:
+            # Log detailed mismatch info
+            missing = set(source_files.keys()) - set(backup_files.keys())
+            extra = set(backup_files.keys()) - set(source_files.keys())
+            sha_diff = [f for f in source_files if f in backup_files and source_files[f] != backup_files[f]]
             logger.info(f"  ⚠️  [{repo_type}] {repo_name}: Backup mismatched, will clean sync...")
+            if missing:
+                logger.info(f"     Missing files: {len(missing)}")
+            if extra:
+                logger.info(f"     Extra files: {len(extra)}")
+            if sha_diff:
+                logger.info(f"     Content mismatches: {len(sha_diff)}")
             needs_clean_sync = True
 
         # Get size for logging
-        size_bytes = sum(source_files.values()) if source_files else self.get_repo_size(repo_id, repo_type)
+        size_bytes = self.get_repo_size(repo_id, repo_type)
         size_str = f"{size_bytes / (1024**3):.1f} GB" if size_bytes > 1024**3 else f"{size_bytes / (1024**2):.1f} MB"
 
         logger.info(f"  📦 [{repo_type}] {repo_name}: {size_str}")

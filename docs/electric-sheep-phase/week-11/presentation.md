@@ -408,6 +408,65 @@ caml-research/
 
 ---
 
+## 9. Discussion: Observational Probes vs Causal Steering
+
+**Question for discussion:** How much detail should we include on the distinction between observational probing (what we're doing) and causal steering (intervention)?
+
+### The Core Distinction
+
+| Aspect | Observational Probing | Causal Steering |
+|--------|----------------------|-----------------|
+| **Operation** | Reads activations passively | Writes to activations actively |
+| **Goal** | Detect if compassion is present | Induce compassionate behavior |
+| **Output** | Classification score | Changed model outputs |
+| **Our status** | Current work | Future work (Appendix A) |
+
+### Why This Matters
+
+Our key finding — **layer 8 (25% depth) is optimal for probing** — may not transfer to steering:
+
+| Method | Typical Optimal Depth | Why |
+|--------|----------------------|-----|
+| Probing | Later layers (60-80%) | Benefits from processed representations |
+| **Our probing** | **25%** | Compassion seems "early-encoded" |
+| Steering | Middle layers (40-50%) | Needs room for signal to propagate |
+
+Literature suggests steering works best ~layers 14-17 for 32-layer models. If compassion probing is optimal at layer 8, steering might need a different layer entirely.
+
+### Presentation Options
+
+**Option A: Minimal (current approach)**
+- Keep steering in Appendix A
+- Focus on probing results
+- Note "probing ≠ steering" as caveat (section 4.3)
+
+**Option B: Dedicated section**
+- Explain the read vs write distinction
+- Reference CAA paper's theoretical explanation
+- Set up steering as natural next phase
+- Useful if CaML team wants to discuss intervention roadmap
+
+**Option C: Integrate throughout**
+- Weave distinction into each finding
+- "This is what we observe; here's what it might mean for steering"
+- More complex but connects current work to applications
+
+### Key Literature
+
+From CAA paper (arXiv:2312.06681):
+> "Intervening at intermediate layers is particularly effective due to latent representations being in their most abstract and modifiable form at that point."
+
+This suggests our layer 8 probing result (early) may not predict steering behavior (likely middle layers).
+
+### Recommendation
+
+**Option A seems right for now** — our current work is probing-focused, and steering is explicitly future work. But we should:
+1. Keep the "probing ≠ steering" caveat prominent
+2. Be prepared to discuss implications if asked
+3. Reference `docs/probing-vs-steering-layers.md` for deeper literature review
+
+---
+
 ## Appendix A: Future Steering Experiments (Low Priority)
 
 Activation steering is out of scope for the current probing work, but these experiments may be relevant once probing is validated:

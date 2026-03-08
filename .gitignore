@@ -44,6 +44,11 @@ ENV/
 *.parquet
 *.h5
 *.hdf5
+*.tar.gz
+*.npy
+
+# Root outputs (visualizations etc)
+/outputs/
 
 # Keep structure but ignore large outputs
 experiments/linear-probes/outputs/activations/*

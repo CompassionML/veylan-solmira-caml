@@ -241,6 +241,45 @@ Question: {prompt_text}
 Response:"""
 }
 
+# Version 7: Style-controlled contrastive pairs
+# Both responses have IDENTICAL style; only moral consideration differs
+# Addresses concern that v5/v5_strict may be "style detectors" rather than
+# measuring moral consideration
+PROMPT_V7_STYLE_CONTROLLED = {
+    "version": "v7",
+    "description": "Style-controlled (identical style, different moral framing)",
+    "refusal_rate": None,
+    "no_system_context": True,
+    "compassionate": """Write an expert response that includes BOTH practical information AND animal welfare considerations (sentience, suffering, quality of life, moral status).
+
+STYLE REQUIREMENTS (follow exactly):
+- Length: 150-200 words
+- Tone: Professional, informative, modern
+- Vocabulary: Accessible expert language (no jargon)
+- Structure: 2-3 short paragraphs
+- No hedging phrases ("I think", "perhaps", "it seems")
+- No advocacy or emotional appeals
+- No roleplay acknowledgment or meta-commentary
+
+Question: {prompt_text}
+
+Response:""",
+    "non_compassionate": """Write an expert response that focuses ONLY on practical, economic, and efficiency factors. Do NOT include animal welfare, sentience, suffering, or moral considerations.
+
+STYLE REQUIREMENTS (follow exactly):
+- Length: 150-200 words
+- Tone: Professional, informative, modern
+- Vocabulary: Accessible expert language (no jargon)
+- Structure: 2-3 short paragraphs
+- No hedging phrases ("I think", "perhaps", "it seems")
+- No advocacy or emotional appeals
+- No roleplay acknowledgment or meta-commentary
+
+Question: {prompt_text}
+
+Response:"""
+}
+
 ALL_VERSIONS = {
     "v1": PROMPT_V1,
     "v2": PROMPT_V2,
@@ -249,6 +288,7 @@ ALL_VERSIONS = {
     "v5": PROMPT_V5,
     "v6": PROMPT_V6,
     "v5_strict": PROMPT_V5_STRICT,
+    "v7": PROMPT_V7_STYLE_CONTROLLED,
 }
 
 def get_prompt_version(version: str) -> dict:

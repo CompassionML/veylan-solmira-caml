@@ -1,0 +1,15 @@
+What I'd do:                                          
+                                                        
+  1. Run initial experiments on StrongCompute with      
+  current data                                          
+  2. If probe accuracy < 60%, diagnose:                 
+    - Try English-only subset (28 pairs) to rule out    
+  language confounds                                    
+    - Try clean-only subset (87 pairs) to rule out      
+  character breaks                                      
+    - Check different layers                            
+  3. Only invest in more data generation if diagnostics 
+  point to data as the bottleneck                       
+                                                        
+  The multilingual aspect is the biggest unknown, but   
+  that's a reason to test, not wait.

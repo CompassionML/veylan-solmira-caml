@@ -6,6 +6,10 @@ Alternatives to contrastive pair generation for training linear probes.
 
 **Update:** Refusal problem solved with v4 "historical framing" prompt (85% success rate). We now have 113 usable pairs.
 
+**Related docs:**
+- [Activation Extraction Positions](activation-extraction-positions.md) — Where in the sequence to extract (last token vs mean pool)
+- [Minimal Pairs Validation](minimal-pairs-validation.md) — Word-swap methodology to validate probe measures compassion, not style
+
 ---
 
 ## Research Findings (2025-2026 Literature)

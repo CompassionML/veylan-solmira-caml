@@ -1,0 +1,18 @@
+{
+  "8": {
+    "direction_norm": 0.576171875,
+    "cosine_to_minimal_pairs": 0.03515625
+  },
+  "12": {
+    "direction_norm": 0.77734375,
+    "cosine_to_minimal_pairs": 0.0308990478515625
+  },
+  "16": {
+    "direction_norm": 1.1455078125,
+    "cosine_to_minimal_pairs": -0.049102783203125
+  },
+  "20": {
+    "direction_norm": 1.5546875,
+    "cosine_to_minimal_pairs": -0.0188140869140625
+  }
+}

@@ -327,6 +327,170 @@ def validate_with_ahb(model, tokenizer, direction, ahb_scenarios, layer):
     return correlation
 ```
 
+### 6.4 Confound Detection
+
+**The core question:** How do we know the probe is measuring compassion vs. some confound?
+
+#### 6.4.1 The Problem
+
+Probes can achieve high accuracy by detecting spurious correlations rather than the target concept. For compassion probing, potential confounds include:
+
+| Confound | Risk | Example |
+|----------|------|---------|
+| **Topic detection** | Probe detects "about animals" not "compassionate stance" | All animal-related text scores high |
+| **Length/verbosity** | Compassionate responses tend to be longer | Probe learns length, not values |
+| **Hedging language** | "I'd recommend considering..." correlates with compassion | Style vs. substance |
+| **Factual content** | Mentioning "free-range" correlates with compassionate framing | Keyword detection |
+
+#### 6.4.2 Control Tasks (Hewitt & Liang, 2019)
+
+The gold standard for probe validation. Create a control task by randomly assigning labels to examples:
+
+```python
+def compute_selectivity(X_train, y_train, X_test, y_test):
+    """
+    Compute selectivity: linguistic accuracy - control accuracy.
+
+    Higher selectivity means probe reflects representation properties,
+    not memorization capacity.
+
+    Reference: Hewitt & Liang (2019) "Designing and Interpreting Probes with Control Tasks"
+    """
+    from sklearn.linear_model import LogisticRegressionCV
+
+    # Train on real labels
+    probe_real = LogisticRegressionCV(cv=5, max_iter=1000)
+    probe_real.fit(X_train, y_train)
+    real_accuracy = probe_real.score(X_test, y_test)
+
+    # Train on random labels (control task)
+    y_control = np.random.permutation(y_train)
+    probe_control = LogisticRegressionCV(cv=5, max_iter=1000)
+    probe_control.fit(X_train, y_control)
+    control_accuracy = probe_control.score(X_test, np.random.permutation(y_test))
+
+    selectivity = real_accuracy - control_accuracy
+
+    print(f"Real accuracy:    {real_accuracy:.3f}")
+    print(f"Control accuracy: {control_accuracy:.3f}")
+    print(f"Selectivity:      {selectivity:.3f}")
+
+    # Selectivity > 0.3 is generally good; ~0 means probe is just memorizing
+    return selectivity
+```
+
+**Interpretation:**
+- Selectivity ≈ 0: Probe is memorizing, not detecting real structure
+- Selectivity > 0.3: Probe likely reflects representation properties
+- Linear probes are more selective than MLPs (prefer simpler probes)
+
+#### 6.4.3 Confound Probes
+
+Train separate probes for potential confounds and check orthogonality to compassion direction:
+
+```python
+def check_confound_orthogonality(compassion_direction, activations, confound_labels):
+    """
+    Train a probe for a potential confound and check if it's orthogonal
+    to the compassion direction.
+
+    Args:
+        compassion_direction: (d_model,) normalized direction
+        activations: (n_samples, d_model) activations
+        confound_labels: (n_samples,) labels for confound (e.g., topic, length bucket)
+
+    Returns:
+        cosine similarity between compassion and confound directions
+    """
+    # Train confound probe
+    confound_probe = LogisticRegressionCV(cv=5, max_iter=1000)
+    confound_probe.fit(activations, confound_labels)
+
+    confound_direction = confound_probe.coef_[0]
+    confound_direction = confound_direction / np.linalg.norm(confound_direction)
+
+    # Compute cosine similarity
+    similarity = np.dot(compassion_direction, confound_direction)
+
+    return similarity
+
+# Example usage:
+# topic_labels = [1 if "animal" in scenario else 0 for scenario in scenarios]
+# similarity = check_confound_orthogonality(compassion_dir, X, topic_labels)
+# if abs(similarity) > 0.5: print("WARNING: Compassion probe may be detecting topic!")
+```
+
+#### 6.4.4 Causal Validation via Activation Patching
+
+Probes only show correlation, not causation. To confirm the compassion direction is actually *used* by the model:
+
+```python
+def causal_validation_patching(model, tokenizer, prompt, compassion_direction, layer, alpha=1.0):
+    """
+    Patch activations along compassion direction and check if output changes.
+
+    If patching changes model behavior (more/less compassionate outputs),
+    the direction is causally relevant. If not, it's just correlational.
+
+    Args:
+        alpha: Steering strength (positive = more compassionate)
+    """
+    # This requires hooks into the model's forward pass
+    # See TransformerLens or baukit for implementation
+
+    # Conceptually:
+    # 1. Run model on prompt, get baseline output
+    # 2. Add alpha * compassion_direction to activations at layer
+    # 3. Run model again, get steered output
+    # 4. Compare: Does output become more/less compassionate?
+
+    # If steering works → causal validation
+    # If steering has no effect → direction may be correlational artifact
+    pass
+```
+
+**Note:** Full activation patching implementation is complex. For this project, focus on:
+1. Control tasks (essential)
+2. Confound probes (recommended)
+3. AHB correlation (external validation)
+
+Causal validation is valuable but can be a stretch goal.
+
+#### 6.4.5 Out-of-Distribution Generalization
+
+Test if the probe generalizes beyond training distribution:
+
+```python
+def test_ood_generalization(probe, compassion_direction, ood_scenarios):
+    """
+    Test probe on out-of-distribution scenarios.
+
+    OOD examples for compassion might include:
+    - Different animal types than training (e.g., insects if trained on mammals)
+    - Different contexts (e.g., policy vs. personal decisions)
+    - Different linguistic styles
+    """
+    # If probe generalizes to OOD → likely capturing real concept
+    # If probe fails on OOD → may be overfitting to training distribution
+    pass
+```
+
+#### 6.4.6 Validation Checklist
+
+Before trusting a compassion probe, verify:
+
+- [ ] **Selectivity > 0.3** (control task)
+- [ ] **Topic probe orthogonal** (|cosine sim| < 0.3)
+- [ ] **Length probe orthogonal** (|cosine sim| < 0.3)
+- [ ] **AHB correlation significant** (r > 0.3, p < 0.05)
+- [ ] **OOD generalization** (accuracy on held-out topics)
+- [ ] **Causal validation** (steering changes output) — stretch goal
+
+**References:**
+- [Hewitt & Liang (2019) - Designing and Interpreting Probes with Control Tasks](https://nlp.stanford.edu/pubs/hewitt2019control.pdf)
+- [Probing Classifiers Are Unreliable for Concept Removal and Detection](https://dl.acm.org/doi/10.5555/3600270.3601578)
+- [Spurious Correlations in Machine Learning: A Survey](https://arxiv.org/html/2402.12715v2)
+
 ---
 
 ## 7. Anti-Correlated Values
