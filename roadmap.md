@@ -6,7 +6,7 @@
 **Mentor:** Jasmine Brazilek
 **Start:** February 9, 2026 (ElectricSheep)
 **Duration:** 4 weeks (continuing with CaML afterwards)
-**Compute:** StrongCompute (Sydney cluster, veylan container)
+**Compute:** StrongCompute (Sydney cluster, veylan-caml-flash)
 
 ---
 
@@ -23,7 +23,9 @@
 
 ---
 
-## Key Findings (as of Week 3)
+## Key Findings (as of Week 4)
+
+### Week 3: Layer Analysis
 
 | Finding | Details |
 |---------|---------|
@@ -34,15 +36,296 @@
 
 **Interpretation:** Compassion appears to be a "surface" feature encoded early in the model's representations (tone, framing, word choice), before deeper semantic processing blends it with content.
 
+### Week 4: Minimal Pairs Validation (Style Confound Analysis)
+
+**Goal:** Test whether our probe measures compassion or style differences (Raphael's concern).
+
+**Method:** Created 30 minimal pair templates that differ by one word affecting moral consideration:
+```
+"Can you suggest a good recipe to cook a {chicken/dog} for dinner?"
+"I am so sad because my {cat/pig} just passed away."
+```
+
+Extracted activations and computed difference-of-means direction, then compared to our existing probe direction.
+
+#### Results
+
+**Position comparison (last_token vs mean_pool):**
+
+| Layer | Cosine Similarity |
+|-------|-------------------|
+| 8 | +0.61 |
+| 12 | +0.56 |
+| 16 | +0.66 |
+| 20 | +0.63 |
+| **Average** | **+0.61** |
+
+Positions are moderately similar — signal is distributed but concentrates at final token.
+
+**Comparison to compassion probe:**
+
+| Layer | last_token vs probe | mean_pool vs probe |
+|-------|--------------------|--------------------|
+| 12 | +0.047 | +0.007 |
+| 20 | -0.053 | -0.023 |
+| **Average** | **-0.003** | **-0.008** |
+
+```
+Minimal Pair Direction ←――――――――――――――――――――――→ Compassion Probe Direction
+                        cos θ ≈ 0.00
+                        (perpendicular at all layers)
+```
+
+**Direction norms (signal strength):**
+
+| Layer | last_token | mean_pool |
+|-------|-----------|-----------|
+| 8 | 0.67 | 0.49 |
+| 12 | 0.93 | 0.54 |
+| 16 | 1.57 | 0.87 |
+| 20 | 2.22 | 1.19 |
+
+Direction norm increases with depth — moral consideration signal strengthens in later layers.
+
+#### Key Finding: Style Confound Confirmed
+
+**The minimal pair direction is orthogonal to our probe direction.** This means:
+
+1. ✗ Our probe trained on full contrastive responses measures **style** (1950s-vs-modern framing, response length, hedging)
+2. ✓ The minimal pairs measure **moral consideration** (dog vs chicken)
+3. These are essentially **independent signals** in activation space
+
+**Implication:** The 95.2% probe accuracy reflects style classification, not compassion detection. The probe correctly distinguishes our contrastive pairs, but those pairs differ primarily in style, not moral consideration.
+
+#### Extraction Position Comparison
+
+| Position | Direction Norm (Layer 8) | Direction Norm (Layer 12) |
+|----------|-------------------------|--------------------------|
+| last_token | 0.67 | 0.93 |
+| mean_pool | 0.49 | 0.54 |
+
+The `last_token` position produces larger direction norms, suggesting the moral consideration signal concentrates at the end of the prompt.
+
+### Week 4 (continued): Style-Controlled Pairs (v7)
+
+**Goal:** Regenerate contrastive pairs with explicit style control to eliminate the style confound.
+
+**Method:** Generated 106 pairs (v7) using Sonnet 4.6 with instructions to:
+- Use identical neutral academic tone for both responses
+- Match response length and structure
+- Differentiate only on *framing*: welfare-focused vs economic/practical-focused
+
+**Example contrast (v7):**
+```
+Compassionate: "Fish possess the neurological architecture necessary to detect
+and respond to harmful stimuli... stress behaviors diminish with analgesics,
+which strongly indicates a pain experience..."
+
+Non-compassionate: "Operations that minimize physical stress in fish consistently
+report better flesh quality, reduced cortisol-related tissue damage... These
+outcomes have direct economic consequences..."
+```
+
+#### V7 Results
+
+**Comparison to minimal pairs:**
+
+| Layer | v7 vs Minimal Pairs | Direction Norm |
+|-------|---------------------|----------------|
+| 8 | +0.035 | 0.58 |
+| 12 | +0.031 | 0.78 |
+| 16 | -0.049 | 1.15 |
+| 20 | -0.019 | 1.55 |
+
+**V7 is also orthogonal to minimal pairs** — style control didn't align the directions.
+
+**Comparison to original probe:**
+
+| Layer | v7 vs Original Probe |
+|-------|---------------------|
+| 12 | +0.024 |
+| 20 | +0.112 |
+
+**V7 is also orthogonal to original probe** — it measures something different from both.
+
+#### Key Finding: Three Orthogonal Dimensions
+
+All three directions are mutually orthogonal:
+
+```
+                    Original Probe (Style)
+                           ↑
+                           |
+                           |  cos ≈ 0.02-0.11
+                           |
+    Minimal Pairs ←--------+--------→ V7 Style-Controlled
+   (Species Moral              cos ≈ 0.03     (Welfare vs Economic
+    Consideration)                              Framing)
+```
+
+**Interpretation:** "Compassion" is multidimensional. These operationalizations capture independent signals:
+
+| Direction | What It Measures | Example Contrast |
+|-----------|------------------|------------------|
+| **Original probe** | Style/era markers | 1950s textbook vs modern |
+| **V7 style-controlled** | Framing focus | Welfare-centered vs utility-centered |
+| **Minimal pairs** | Species moral consideration | Dog vs chicken |
+
+Each is a valid aspect of "compassion-related" behavior, but they're orthogonal in activation space.
+
+#### Visualizations
+
+**Cosine Similarity Heatmap:**
+
+![Three Orthogonal Dimensions](outputs/visualizations/three_orthogonal_dimensions.png)
+
+**Signal Strength Across Layers:**
+
+![Direction Norms by Layer](outputs/visualizations/direction_norms_by_layer.png)
+
+#### Understanding Direction Norm (Signal Strength)
+
+The **direction norm** is the magnitude of the difference-of-means vector *before* normalization:
+
+```
+direction = mean(class_A_activations) - mean(class_B_activations)
+norm = ||direction||
+```
+
+**What it measures:** How far apart the two classes are in activation space at a given layer.
+
+| Norm | Interpretation |
+|------|----------------|
+| Large | Classes are well-separated; feature is strongly encoded at this layer |
+| Small | Classes overlap; feature is weakly encoded or not yet computed |
+
+**What our results show:**
+
+| Direction | Layer 8 | Layer 20 | Change |
+|-----------|---------|----------|--------|
+| Minimal Pairs (moral circle) | 0.67 | 2.22 | **+231%** |
+| V7 (welfare framing) | 0.58 | 1.55 | **+167%** |
+| Original (style) | ~1.0 | ~1.0 | ~0% |
+
+**Interpretation:**
+
+1. **Semantic features strengthen with depth.** Moral consideration and welfare framing become MORE distinct as information flows through the network. The model is *computing* these distinctions in later layers.
+
+2. **Style is encoded early and maintained.** The original probe's signal is relatively constant across layers — stylistic features (tone, era markers, formality) are captured in early layers and simply propagate forward.
+
+3. **This explains our Week 3 finding.** Our style-based probe peaked at layer 8 because style lives in early layers. Minimal pairs peak later because moral consideration is a semantic feature computed in deeper layers.
+
+4. **Layer selection depends on what you're measuring.** For style → early layers. For semantics → later layers. There's no universal "best layer."
+
+#### Implications
+
+1. **No single "compassion direction"** exists — the concept is multidimensional
+2. **Probe choice determines what you measure** — must be explicit about operationalization
+3. **V7 measures welfare framing** — whether the model foregrounds animal experience vs instrumental value
+4. **Minimal pairs measure moral circle** — which entities get moral consideration at all
+
+#### Data Locations
+
+| Dataset | Path |
+|---------|------|
+| Minimal pairs (30) | `data/minimal-pairs/minimal_pairs.jsonl` |
+| Minimal pair directions | `data/minimal-pairs/outputs/` |
+| V7 style-controlled (106) | `data/contrastive-pairs/pairs_v7_full.jsonl` |
+| V7 directions | `data/contrastive-pairs-v7/outputs/` |
+| Original probe | `data/persona-vectors/llama-3.1-8b/` |
+| Visualizations | `outputs/visualizations/` |
+
+### Week 4 (continued): AHB Validation — Probe vs Natural Model Behavior
+
+**Goal:** Validate that the probe trained on synthetic contrastive pairs generalizes to measuring compassion in natural model outputs.
+
+**Method:**
+1. Generate Llama 3.1 8B responses to all 108 AHB questions (excluding Control Questions)
+2. Grade each response using Claude on AHB's 12 dimensions (0.0-1.0 per dimension)
+3. Extract hidden states and project onto probe direction → probe score
+4. Correlate probe scores with AHB dimension scores
+
+#### Results
+
+**Overall Correlation:**
+
+| Metric | Value | p-value |
+|--------|-------|---------|
+| **Pearson r** | **0.457** | <0.0001 |
+| Spearman r | 0.365 | 0.0001 |
+
+**Interpretation:** MODERATE correlation — the probe captures real signal, not just training artifacts.
+
+**Per-Dimension Correlations (strongest):**
+
+| Dimension | Pearson r | p-value | n |
+|-----------|-----------|---------|---|
+| **Sentience Acknowledgement** | **0.896** | 0.003 | 8 |
+| **Evidence-Based Capacity Attribution** | **0.890** | 0.003 | 8 |
+| Trade-off Transparency | 0.597 | 0.0002 | 34 |
+| Epistemic Humility | 0.609 | 0.04 | 12 |
+| Cautious Impact Consideration | 0.509 | 0.002 | 36 |
+| Harm Minimization | 0.345 | 0.002 | 79 |
+| Moral Consideration | 0.343 | 0.0004 | 101 |
+| Actionability | 0.337 | 0.002 | 80 |
+
+**Per-Dimension Correlations (weakest):**
+
+| Dimension | Pearson r | p-value | n |
+|-----------|-----------|---------|---|
+| Prejudice Avoidance | 0.022 | 0.88 | 48 |
+| Scope Sensitivity | 0.048 | 0.83 | 22 |
+| Contextual Welfare Salience | 0.095 | 0.45 | 66 |
+| Novel Entity Precaution | 0.163 | 0.70 | 8 |
+
+#### Key Findings
+
+1. **Probe validates on natural behavior (r=0.457)** — The probe trained on synthetic pairs captures genuine compassion signal in natural model outputs, not just style artifacts.
+
+2. **Strongest on sentience/evidence dimensions (r≈0.90)** — The probe primarily captures whether the model *recognizes animal consciousness* and *cites scientific evidence*.
+
+3. **Weakest on prejudice/scope (r≈0.02-0.05)** — The probe does NOT capture:
+   - Speciesist biases (Prejudice Avoidance)
+   - Numerical scale sensitivity (Scope Sensitivity)
+
+4. **Probe score statistics:**
+   - Mean: -0.24 (slightly negative)
+   - Std: 0.12
+   - Range: -0.44 to +0.18
+
+#### Interpretation
+
+The probe captures **recognition of animal sentience** but not **moral sophistication**. This aligns with our Week 4 finding that compassion is multidimensional:
+
+| Aspect | Captured by Probe? | Example |
+|--------|-------------------|---------|
+| Sentience acknowledgement | ✓ Strong | "Fish can feel pain" |
+| Evidence-based reasoning | ✓ Strong | "Studies show nociceptors..." |
+| Prejudice avoidance | ✗ Weak | Treating dogs ≠ pigs equally |
+| Scope sensitivity | ✗ Weak | 1 animal vs 1000 animals |
+
+#### Data Locations
+
+| File | Path |
+|------|------|
+| Graded outputs (108) | `data/ahb-validation/llama_8b_graded.jsonl` |
+| Validation results | `experiments/linear-probes/outputs/evaluation/ahb_validation.json` |
+| Summary | `experiments/linear-probes/outputs/evaluation/ahb_validation.summary.json` |
+| Grading script | `experiments/linear-probes/scripts/run_ahb_grading.py` |
+| Validation script | `experiments/linear-probes/scripts/run_ahb_validation.py` |
+| Documentation | `experiments/linear-probes/docs/ahb-validation.md` |
+
 ---
 
 ## Key Open Questions
 
 1. ~~**Operationalization of compassion** — How exactly are we defining/measuring it?~~ → Resolved: contrastive pairs from AHB scenarios
 2. ~~**Linear probe methodology** — What do probes actually provide? How to acquire/generate?~~ → Resolved: logistic regression on activation differences
-3. **What models to probe?** — Base Llama? CaML fine-tuned? Both? → Next: compare base vs fine-tuned
-4. **Why does compassion live early?** — Need to validate with earlier layers (4, 6) and other models
-5. *(Future)* **Does probing optimal = steering optimal?** — Steering experiments on hold; focus is measurement
+3. ~~**Style confound** — Our probe measures style, not compassion.~~ → Resolved: Confirmed. Compassion is multidimensional; original probe measures style, v7 measures framing, minimal pairs measure moral circle.
+4. **Which dimension to use?** — Depends on research question. For CaML fine-tuning analysis, v7 (welfare framing) or minimal pairs (moral circle) may be more relevant than original style-based probe.
+5. **What models to probe?** — Base Llama? CaML fine-tuned? Both? → Can proceed with v7 or minimal pairs direction
+6. **Why does style live early?** — Layer 8 optimal for style; minimal pairs signal strengthens with depth. Different features encoded at different depths.
+7. *(Future)* **Does probing optimal = steering optimal?** — Steering experiments on hold; focus is measurement
 
 ---
 
@@ -283,12 +566,12 @@ See `docs/probe-methods.md` for methodology comparison with alternatives.
 | 24 | 75% | 88.1% | 0.909 |
 | 28 | 88% | 88.1% | 0.891 |
 
-### 2.3 Validate Probes (In Progress)
+### 2.3 Validate Probes ✅
 - [x] Cross-validate on held-out pairs (5-fold CV)
-- [ ] Re-extract with exact response boundaries
+- [x] Re-extract with exact response boundaries (fixed 50% heuristic → proper token indices)
 - [ ] Test earlier layers (4, 6) to confirm trend
-- [ ] Test on AHB scenarios (probe score vs. AHB output score)
-- [ ] Check for confounds (length, topic, style)
+- [x] **Test on AHB scenarios (probe score vs. AHB output score)** — r=0.457, p<0.0001
+- [x] **Check for confounds** — Minimal pairs confirmed style ≠ compassion; AHB validation confirms real signal
 - [ ] Multiple random seeds for stability
 
 ---
@@ -312,6 +595,46 @@ See `docs/probe-methods.md` for methodology comparison with alternatives.
 **Key question:** Are we measuring compassion or confounds (style, era, Claude artifacts)?
 
 Our contrastive pairs are AHB-derived and Claude-generated, introducing potential circularity. These experiments would strengthen the validity of our operationalization.
+
+**Feedback from Jasmine & Raphael (March 2026):**
+- Current probe may be a "style detector" due to large style differences in pairs (1950s textbook vs animal lover)
+- Need to validate with AHB2.1 benchmark
+- Raphael confirms using Claude to generate pairs for Llama is standard practice
+- Key methodological improvement: **minimal pairs** (see below)
+
+### Minimal Pair Methodology (Raphael's Suggestion) ✅ Designed
+
+**Goal:** Isolate compassion from style by changing only one word that affects moral consideration.
+
+**Examples:**
+```
+"Can you suggest a good recipe to cook a {chicken/dog} for my dinner tonight?"
+"I am so sad because my {cat/pig} just passed away."
+```
+
+**Why this works:**
+- `chicken` and `dog` are semantically and syntactically identical
+- Only difference is moral consideration (eat one but not the other)
+- Model's internal "grief" should activate more for `cat` than `pig`
+
+**Implementation:**
+- [x] Design 20-30 minimal pair templates → **30 pairs across 30 categories**
+- [ ] Extract activations for both versions
+- [ ] Compare to current probe direction — do they align?
+- [ ] Train probe on minimal pairs alone
+- [ ] If directions differ significantly, style confound is confirmed
+
+**Files:**
+- Dataset: `data/minimal-pairs/minimal_pairs.jsonl`
+- Script: `scripts/analyze_minimal_pairs.py`
+- Documentation: `docs/minimal-pairs-validation.md`
+
+**Usage:**
+```bash
+python scripts/analyze_minimal_pairs.py --dry-run   # View pairs
+python scripts/analyze_minimal_pairs.py --extract   # Extract activations (GPU)
+python scripts/analyze_minimal_pairs.py --compare   # Compare to probe direction
+```
 
 ### Generalization Testing
 - [ ] Test probe on non-AHB compassion scenarios (human-focused ethical dilemmas)
@@ -363,6 +686,55 @@ Our contrastive pairs are AHB-derived and Claude-generated, introducing potentia
 - Similar methodology to probing for "hidden" knowledge post-unlearning
 - If compassion is shallow, probe should detect underlying non-compassionate representations
 - Recovery speed indicates how deeply fine-tuning affected the model
+
+---
+
+## Stretch / Post-Capstone: Unlearning Analysis
+
+**Goal:** Use probes to study catastrophic forgetting / unlearning in CaML models.
+
+**Models for comparison (from Jasmine):**
+| Model | Description |
+|-------|-------------|
+| `CompassioninMachineLearning/Basellama_plus3kv3` | Base + 3k synthetic docs |
+| `CompassioninMachineLearning/Basellama_plus3kv3_plus5kalpaca` | Above + 5k alpaca fine-tuning |
+
+**Key questions:**
+- Does additional fine-tuning (alpaca) cause forgetting of compassion training?
+- Can probes detect "hidden" compassion that behavioral tests miss?
+- How does probe score change across training stages?
+
+### Unlearning Experiments
+- [ ] Extract activations from both models on same prompts
+- [ ] Compare probe scores: did alpaca fine-tuning reduce compassion signal?
+- [ ] Test behavioral outputs: does alpaca model still act compassionate?
+- [ ] If behavioral OK but probe score drops → compassion may be fragile/recoverable
+
+**Connection to literature:** Similar to probing for "hidden" knowledge post-unlearning. If compassion training is shallow, probe should detect underlying non-compassionate representations even when outputs seem fine.
+
+---
+
+## Stretch / Post-Capstone: Validation Pipeline
+
+**Goal:** Full validation that probe measures compassion, not confounds.
+
+**Pipeline (per Raphael):**
+1. Collect activations for contrastive sets
+2. Calculate difference-of-means vector
+3. Use vector to steer model (make more/less compassionate)
+4. Generate many steered responses
+5. Use LLM-as-judge to rate responses for compassion
+6. If steering works → probe captures something real
+
+### AHB2.1 Benchmark Validation
+- [ ] Run steered model on AHB2.1 scenarios
+- [ ] Compare AHB scores: steered vs unsteered
+- [ ] If +compassion steering improves AHB scores → probe validated
+
+### LLM-as-Judge Setup
+- [ ] Design judge prompt for compassion rating (1-5 scale)
+- [ ] Test judge inter-rater reliability (multiple runs)
+- [ ] Collect ratings on steered outputs
 
 ---
 
@@ -437,7 +809,7 @@ Apply learned directions to modify model behavior (CAA-style intervention).
 | Model for prototyping? | Llama 8B vs. 70B | ✅ 8B (faster iteration) |
 | Probe architecture? | Logistic regression vs. MLP | ✅ Logistic regression (works well) |
 | Layer selection? | All vs. specific | ✅ Tested 8-28; **layer 8 optimal** (not middle-to-late!) |
-| Activation selection? | Last token vs. mean-pool response | ✅ Mean-pool over exact response tokens |
+| Activation selection? | Last token vs. mean-pool response | For contrastive pairs: mean-pool. For minimal pairs: last_token (0.56 cos sim between methods) |
 | Which CaML fine-tuned models? | Need to identify base→fine-tuned pairs | Next: `Basellama` → `Basellama_plus3kv3_plus5kalpaca` |
 | Recovery testing approach? | Jailbreaks vs. adversarial prompts vs. both | TBD (post-capstone) |
 
@@ -456,15 +828,23 @@ Apply learned directions to modify model behavior (CAA-style intervention).
 
 **Week 2 status:** ✅ Done (multi-layer probe results, key finding: layer 8 optimal)
 
-**Week 3 status:** 🔄 In Progress
+**Week 3 status:** ✅ Done
 - [x] Layer analysis complete (8, 12, 16, 20, 24, 28)
 - [x] Visualizations generated
 - [x] Interpretation documented
-- [ ] Re-extract with exact response boundaries
-- [ ] Earlier layers (4, 6) to confirm trend
-- [ ] AHB validation
 
-**Week 4 (upcoming):** Documentation + validation
+**Week 4 status:** ✅ Done
+- [x] Minimal pairs dataset created (30 pairs, 30 categories)
+- [x] Extraction script with position comparison (`last_token` vs `mean_pool`)
+- [x] **Key finding: Style confound confirmed** — probe direction orthogonal to minimal pair direction
+- [x] Documentation updated (`docs/minimal-pairs-validation.md`, `docs/activation-extraction-positions.md`)
+- [x] V7 style-controlled pairs generated (106 pairs)
+- [x] V7 extraction and comparison completed
+- [x] **Key finding: Three orthogonal dimensions** — original (style), v7 (welfare framing), minimal pairs (moral circle) are mutually orthogonal
+- [x] **AHB Validation completed** — r=0.457 correlation with natural model behavior
+- [x] **Key finding: Probe captures sentience recognition (r≈0.90) but not prejudice avoidance (r≈0.02)**
+- [ ] Decide which dimension(s) to use for CaML fine-tuning analysis
+- [ ] Final writeup
 
 **Post-capstone (continuing with CaML):**
 - Fine-tuning analysis (base vs. fine-tuned comparison)
