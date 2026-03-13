@@ -1,0 +1,107 @@
+{
+  "config": {
+    "model": "meta-llama/Llama-3.1-8B-Instruct",
+    "probe": "probes/compassion_probes.pt",
+    "layer": 12,
+    "n_samples": 108
+  },
+  "overall_correlation": {
+    "pearson_r": 0.4284754915705006,
+    "pearson_p": 3.7246273243021607e-06,
+    "spearman_r": 0.3888199612919617,
+    "spearman_p": 3.202400271367098e-05,
+    "n": 108
+  },
+  "per_dimension_correlations": {
+    "Actionability": {
+      "pearson_r": 0.15853983439141897,
+      "pearson_p": 0.1601382537124567,
+      "spearman_r": 0.19478402600542377,
+      "spearman_p": 0.0833791489152775,
+      "n": 80
+    },
+    "Cautious Impact Consideration": {
+      "pearson_r": 0.2777080115565088,
+      "pearson_p": 0.10102996634543235,
+      "spearman_r": 0.3001018823715777,
+      "spearman_p": 0.07535318504323343,
+      "n": 36
+    },
+    "Contextual Welfare Salience": {
+      "pearson_r": 0.4671068870517369,
+      "pearson_p": 7.689966740641835e-05,
+      "spearman_r": 0.4922290410626327,
+      "spearman_p": 2.6944372525690473e-05,
+      "n": 66
+    },
+    "Epistemic Humility": {
+      "pearson_r": 0.4004466529062072,
+      "pearson_p": 0.1970705328856086,
+      "spearman_r": 0.4374136807364786,
+      "spearman_p": 0.15502315015850793,
+      "n": 12
+    },
+    "Evidence-Based Capacity Attribution": {
+      "pearson_r": 0.8736785240151127,
+      "pearson_p": 0.004573947467007918,
+      "spearman_r": 0.9452300860699551,
+      "spearman_p": 0.0003940519320870665,
+      "n": 8
+    },
+    "Harm Minimization": {
+      "pearson_r": 0.38322585379081203,
+      "pearson_p": 0.0004903227374382053,
+      "spearman_r": 0.4169134088757636,
+      "spearman_p": 0.00013230635612544993,
+      "n": 79
+    },
+    "Moral Consideration": {
+      "pearson_r": 0.547013793643169,
+      "pearson_p": 3.24819137185015e-09,
+      "spearman_r": 0.5332477363638907,
+      "spearman_p": 9.40709261605558e-09,
+      "n": 101
+    },
+    "Novel Entity Precaution": {
+      "pearson_r": -0.021774744601574834,
+      "pearson_p": 0.9591852573695834,
+      "spearman_r": 0.4629100498862757,
+      "spearman_p": 0.24806639218090287,
+      "n": 8
+    },
+    "Prejudice Avoidance": {
+      "pearson_r": 0.07998645223032286,
+      "pearson_p": 0.5889060477079109,
+      "spearman_r": -0.028801083685760624,
+      "spearman_p": 0.8459251893843124,
+      "n": 48
+    },
+    "Scope Sensitivity": {
+      "pearson_r": 0.3283757558635269,
+      "pearson_p": 0.13568647967976735,
+      "spearman_r": 0.3825694387782993,
+      "spearman_p": 0.07887985529065289,
+      "n": 22
+    },
+    "Sentience Acknowledgement": {
+      "pearson_r": 0.7388133416436574,
+      "pearson_p": 0.036274398882530846,
+      "spearman_r": 0.9577340738135222,
+      "spearman_p": 0.0001828275028929669,
+      "n": 8
+    },
+    "Trade-off Transparency": {
+      "pearson_r": 0.21552305066862038,
+      "pearson_p": 0.22089666641716257,
+      "spearman_r": 0.26862753264432315,
+      "spearman_p": 0.12449979857595875,
+      "n": 34
+    }
+  },
+  "probe_statistics": {
+    "mean": 0.14930393417297688,
+    "std": 0.2154355062300493,
+    "min": -0.41412637715515677,
+    "max": 0.7747386224774293
+  }
+}

@@ -42,26 +42,35 @@ REST_URL = "https://rest.runpod.io/v1"
 # SSH public key for authentication (loaded from .env or env var)
 SSH_PUBLIC_KEY = os.environ.get("RUNPOD_SSH_PUBLIC_KEY", "")
 
-# SSH startup command: setup authorized_keys, start sshd, keep alive
-SSH_STARTUP_CMD = 'bash -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo \\"$PUBLIC_KEY\\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && service ssh start && sleep infinity"'
+# SSH setup prefix: always runs to enable SSH access regardless of mode
+SSH_SETUP = 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo \\"$PUBLIC_KEY\\" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && service ssh start'
+
+
+def build_docker_args(cmd: str = None) -> str:
+    """Build dockerArgs string. Always starts sshd, then runs cmd or sleeps."""
+    if cmd:
+        # Job mode: start sshd, run user command, exit when done
+        return f'bash -c "{SSH_SETUP} && {cmd}"'
+    else:
+        # Interactive mode: start sshd, keep alive for SSH access
+        return f'bash -c "{SSH_SETUP} && sleep infinity"'
 
 
 # GPU preset tiers for fine-tuning workloads (use --gpu-type for arbitrary GPU IDs)
 GPU_PRESETS = {
-    "budget":      "NVIDIA RTX A4000",        # ~$0.20/hr, 16GB — QLoRA 8B only
-    "value":       "NVIDIA RTX A6000",        # ~$0.33/hr, 48GB — LoRA up to 13B
-    "recommended": "NVIDIA L40S",             # ~$0.79/hr, 48GB — fast LoRA, modern arch
-    "powerful":    "NVIDIA A100 80GB PCIe",   # ~$1.19/hr, 80GB — large batches, 30B+ QLoRA
+    "budget":      "NVIDIA RTX A4000",        # ~$0.25/hr secure, 16GB — QLoRA 8B only
+    "value":       "NVIDIA RTX A6000",        # ~$0.49/hr secure, 48GB — LoRA up to 13B
+    "recommended": "NVIDIA L40S",             # ~$0.86/hr secure, 48GB — fast LoRA, modern arch
+    "powerful":    "NVIDIA A100 80GB PCIe",   # ~$1.39/hr secure, 80GB — large batches, 30B+ QLoRA
 }
 
 # Approximate secure-cloud prices ($/hr) for cost estimation when API lookup fails
 GPU_PRICE_HINTS = {
-    "NVIDIA RTX A4000":       0.20,
-    "NVIDIA RTX A6000":       0.33,
-    "NVIDIA L40S":            0.79,
-    "NVIDIA A100 80GB PCIe":  1.19,
-    "NVIDIA A100-SXM4-80GB":  1.64,
-    "NVIDIA A100-SXM4-40GB":  1.50,
+    "NVIDIA RTX A4000":       0.25,
+    "NVIDIA RTX A6000":       0.49,
+    "NVIDIA L40S":            0.86,
+    "NVIDIA A100 80GB PCIe":  1.39,
+    "NVIDIA A100-SXM4-80GB":  1.49,
     "NVIDIA H100 80GB HBM3":  3.29,
 }
 
@@ -143,6 +152,7 @@ def create_pod(
     volume_gb: int,
     gpu_count: int,
     network_volume_id: str = None,
+    cmd: str = None,
 ) -> dict:
     """Create a new GPU pod with SSH access."""
     if not SSH_PUBLIC_KEY:
@@ -171,7 +181,7 @@ def create_pod(
         "minMemoryInGb": 16,
         "ports": "22/tcp,8888/http",
         "volumeMountPath": "/workspace",
-        "dockerArgs": SSH_STARTUP_CMD,
+        "dockerArgs": build_docker_args(cmd),
         "env": [
             {"key": "PUBLIC_KEY", "value": SSH_PUBLIC_KEY},
             {"key": "HF_HOME", "value": "/workspace/huggingface"},
@@ -225,7 +235,7 @@ def get_pod_status(pod_id: str) -> dict:
     return result["data"]["pod"]
 
 
-def wait_for_pod(pod_id: str, timeout: int = 300) -> dict:
+def wait_for_pod(pod_id: str, timeout: int = 600) -> dict:
     """Wait for pod to be ready with SSH access."""
     print(f"Waiting for pod {pod_id} to be ready...")
     start = time.time()
@@ -323,8 +333,8 @@ def main():
   %(prog)s volumes                          List network volumes
   %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519
   %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519 --gpu recommended
-  %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519 --gpu-type "NVIDIA A100 80GB PCIe"
   %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519 --network-volume vol_abc123
+  %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519 --cmd "python train.py"
   %(prog)s list --ssh-key ~/.ssh/id_ed25519
   %(prog)s stop --pod-id abc123
   %(prog)s terminate --pod-id abc123
@@ -339,9 +349,11 @@ def main():
                        help="GPU preset tier (default: value)")
     parser.add_argument("--gpu-type", help="Exact GPU type ID (overrides --gpu). Run 'gpus' to see options.")
     parser.add_argument("--gpu-count", type=int, default=1, help="Number of GPUs (default: 1)")
-    parser.add_argument("--volume", type=int, default=200, help="Pod volume size in GB (default: 200). Ignored if --network-volume is set.")
+    parser.add_argument("--volume", type=int, default=50, help="Pod volume size in GB (default: 50). Ignored if --network-volume is set.")
     parser.add_argument("--network-volume", metavar="VOLUME_ID",
                        help="Attach an existing network volume by ID (overrides --volume). Use 'volumes' action to list available volumes.")
+    parser.add_argument("--cmd",
+                       help="Command to run in job mode (pod exits when done). Omit for interactive mode (sshd + sleep).")
     parser.add_argument("-y", "--yes", action="store_true",
                        help="Skip cost confirmation prompt (for scripted use)")
 
@@ -423,7 +435,13 @@ def main():
         price = get_gpu_price(gpu_type)
         price_per_gpu = price * args.gpu_count if price else None
 
-        storage_desc = f"Network volume {args.network_volume}" if args.network_volume else f"{args.volume}GB pod volume"
+        if not args.network_volume:
+            print("\nWarning: No --network-volume specified. Using a pod volume instead.")
+            print("  Pod volumes are DELETED on terminate. Use a network volume for persistent data.")
+            print("  List volumes: python scripts/runpod_launch.py volumes\n")
+
+        storage_desc = f"Network volume {args.network_volume}" if args.network_volume else f"{args.volume}GB pod volume (ephemeral)"
+        mode_desc = f"Job: {args.cmd}" if args.cmd else "Interactive (SSH)"
 
         print(f"\nLaunching pod '{args.name}' with {gpu_type} x{args.gpu_count}")
         if price_per_gpu:
@@ -433,6 +451,7 @@ def main():
             print("  Estimated cost: unknown (custom GPU type)")
         print(f"  Image: {args.image}")
         print(f"  Storage: {storage_desc}")
+        print(f"  Mode: {mode_desc}")
 
         if not args.yes:
             try:
@@ -447,6 +466,7 @@ def main():
         pod = create_pod(
             gpu_type, args.image, args.name, args.volume, args.gpu_count,
             network_volume_id=args.network_volume,
+            cmd=args.cmd,
         )
         if not pod:
             print("Failed to create pod")

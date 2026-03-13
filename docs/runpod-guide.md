@@ -69,7 +69,7 @@ uv pip install -r requirements.txt
 ## 3. Quick Start
 
 ```bash
-# Launch a pod with sensible defaults (A6000, 200GB volume)
+# Launch a pod with sensible defaults (A6000 + network volume)
 python scripts/runpod_launch.py launch \
   --image veylansolmira/caml-env:latest \
   --ssh-key ~/.ssh/runpod_ed25519
@@ -111,8 +111,9 @@ All commands: `python scripts/runpod_launch.py <action> [options]`
 | `--gpu-type` | — | Exact GPU ID (overrides `--gpu`). Run `gpus` to see options. |
 | `--gpu-count` | `1` | Number of GPUs |
 | `--name` | `runpod-dev` | Pod name (visible in RunPod dashboard) |
-| `--volume` | `200` | Pod volume size in GB. Ignored if `--network-volume` is set. |
+| `--volume` | `50` | Pod volume size in GB (scratch space). Ignored if `--network-volume` is set. |
 | `--network-volume` | — | Attach an existing network volume by ID (overrides `--volume`). Use `volumes` to find IDs. |
+| `--cmd` | — | Command to run in job mode (pod exits when done). Omit for interactive mode. SSH is available in both modes. |
 | `-y` / `--yes` | — | Skip cost confirmation prompt (for scripted use) |
 
 ### Other flags
@@ -153,7 +154,21 @@ python scripts/runpod_launch.py launch \
 
 # List your network volumes to get an ID
 python scripts/runpod_launch.py volumes
+
+# Job mode — run a training script, pod exits when done
+python scripts/runpod_launch.py launch \
+  --image veylansolmira/caml-env:latest \
+  --ssh-key ~/.ssh/runpod_ed25519 \
+  --network-volume vol_abc123def \
+  --cmd "python /workspace/train.py --lr 1e-4"
 ```
+
+### Interactive vs Job mode
+
+Both modes start sshd so you can always SSH in (for debugging, monitoring, etc.).
+
+- **Interactive (default)**: Container stays alive via `sleep infinity`. You SSH in and work. Use `stop` when done.
+- **Job (`--cmd "..."`)**: Container runs your command, then exits. Good for fire-and-forget training runs and sweeps. SSH is available while the job runs.
 
 ## 5. Choosing a GPU
 
@@ -170,14 +185,14 @@ python scripts/runpod_launch.py volumes
 
 | Preset | GPU | VRAM | ~Cost/hr | Best for |
 |--------|-----|------|----------|----------|
-| `budget` | RTX A4000 | 16GB | $0.20 | QLoRA on 7-8B models only |
-| `value` | RTX A6000 | 48GB | $0.33 | LoRA up to 13B, QLoRA up to 34B. **Best bang for buck.** |
-| `recommended` | L40S | 48GB | $0.79 | Same capacity as A6000 but faster (Ada Lovelace arch) |
-| `powerful` | A100 80GB PCIe | 80GB | $1.19 | Full FT 7B, large batch LoRA, QLoRA 70B |
+| `budget` | RTX A4000 | 16GB | $0.25 | QLoRA on 7-8B models only |
+| `value` | RTX A6000 | 48GB | $0.49 | LoRA up to 13B, QLoRA up to 34B. **Best bang for buck.** |
+| `recommended` | L40S | 48GB | $0.86 | Same capacity as A6000 but faster (Ada Lovelace arch) |
+| `powerful` | A100 80GB PCIe | 80GB | $1.39 | Full FT 7B, large batch LoRA, QLoRA 70B |
 
 ### When to use what
 
-- **Most LoRA/QLoRA work on 7-13B models**: Use `value` (A6000). The 48GB VRAM is more than enough and at $0.33/hr, a 3-hour QLoRA run costs ~$1.
+- **Most LoRA/QLoRA work on 7-13B models**: Use `value` (A6000). The 48GB VRAM is more than enough and at $0.49/hr secure, a 3-hour QLoRA run costs ~$1.50.
 - **Need faster iteration**: Use `recommended` (L40S). Same VRAM but ~2x throughput on FP8 workloads.
 - **A100 is overkill** for most QLoRA work on 7-13B. It makes sense for: full fine-tuning, large batch sizes, or 30B+ models.
 - **Multi-GPU** (`--gpu-count 2+`): Only needed for models that don't fit in a single GPU's VRAM, or to speed up full fine-tunes.
@@ -190,7 +205,7 @@ python scripts/runpod_launch.py volumes
 |---|-----------|----------------|
 | **Persists on stop** | Yes | Yes |
 | **Persists on terminate** | **No — deleted permanently** | Yes |
-| **Shared across pods** | No | Yes (one pod at a time) |
+| **Shared across pods** | No | Yes (multiple pods can mount the same volume) |
 | **Cost** | ~$0.10/GB/mo | $0.07/GB/mo (first 1TB) |
 | **Setup** | Automatic (via `--volume`) | Create in dashboard, pass ID to `--network-volume` |
 
@@ -213,7 +228,9 @@ python scripts/runpod_launch.py volumes
 
 Network volumes mount at `/workspace` — same as pod volumes, so your code works the same either way.
 
-**Limitation**: One pod can only mount one network volume at a time. If you need separate storage for different projects, create multiple volumes and use different pods.
+**One volume, many pods**: A single network volume can be mounted to multiple pods simultaneously — great for sharing models and datasets across the team without duplication. However, each pod can only mount one network volume. Be mindful of concurrent writes to the same files.
+
+**Volumes are tied to a data center, not a GPU type.** A volume in `US-KS-2` can only attach to pods in `US-KS-2`. Different GPU types live in different data centers, so a volume that works with A100s might not be available when launching an L40S (or vice versa). If your team uses multiple GPU types across different regions, you may need **one volume per data center**. Check which GPUs are available in a region before creating a volume — the RunPod dashboard shows this when you select a GPU during pod creation.
 
 ### Checkpoint strategy
 
@@ -273,8 +290,8 @@ This matters because **running out of disk mid-training crashes the job**, wasti
 | Difference | — | +$10.50/mo |
 
 Now consider the cost of a single disk-full crash:
-- A 3-hour QLoRA run on A6000 that crashes at hour 2.5 = **$0.83 wasted**
-- A 6-hour LoRA run on L40S that crashes at hour 5 = **$3.95 wasted**
+- A 3-hour QLoRA run on A6000 that crashes at hour 2.5 = **$1.23 wasted**
+- A 6-hour LoRA run on L40S that crashes at hour 5 = **$4.30 wasted**
 - Plus your time to diagnose, clean up, and restart
 
 **If you hit even 2-3 disk crashes per month, the wasted GPU time exceeds the $10.50/mo storage difference.** And disk crashes tend to happen at the worst time — late in a training run when checkpoints accumulate.
@@ -287,9 +304,7 @@ Now consider the cost of a single disk-full crash:
 | **Team shared volume, regular experimentation** | 100-200GB | $7-14 |
 | **Multiple models, full fine-tuning, or long-running experiments** | 300GB+ | $21+ |
 
-**Start with 100GB as a compromise** if spending is a primary concern. It gives enough headroom for one model + generous cache + multiple adapter checkpoints, without the anxiety of 50GB. You can always increase later (but never decrease).
-
-If the team shares one network volume and multiple people are caching models, go to 200GB immediately — model cache collisions alone will eat 50GB fast.
+**For a shared team volume, start with 200GB** ($14/mo). Multiple pods can mount it simultaneously, so 2-3 people caching different models + datasets can easily eat 100GB. 200GB gives comfortable headroom. You can always increase later (but never decrease).
 
 Volumes can be increased in size later but **never decreased**.
 
@@ -324,15 +339,15 @@ If you need hard per-user budget enforcement, see the [AWS/Lambda gatekeeping no
 
 | Scenario | GPU | Duration | Approx cost |
 |----------|-----|----------|-------------|
-| QLoRA 7B, single epoch | A6000 (value) | ~1.5 hr | ~$0.50 |
-| QLoRA 7B, full run with eval | A6000 (value) | ~5 hr | ~$1.65 |
-| LoRA 13B, multi-epoch | L40S (recommended) | ~8 hr | ~$6.30 |
-| A100 full day | A100 80GB PCIe | 24 hr | ~$28.56 |
+| QLoRA 7B, single epoch | A6000 (value) | ~1.5 hr | ~$0.74 |
+| QLoRA 7B, full run with eval | A6000 (value) | ~5 hr | ~$2.45 |
+| LoRA 13B, multi-epoch | L40S (recommended) | ~8 hr | ~$6.88 |
+| A100 full day | A100 80GB PCIe | 24 hr | ~$33.36 |
 
 The script shows estimated cost before launching and asks for confirmation:
 ```
 Launching pod 'my-experiment' with NVIDIA RTX A6000 x1
-  Estimated cost: ~$0.33/hr ($7.92/day)
+  Estimated cost: ~$0.49/hr ($11.76/day)
   Image: veylansolmira/caml-env:latest
   Storage: 200GB pod volume
 Proceed? [Y/n]
@@ -422,5 +437,6 @@ To build your own image, include `openssh-server` for SSH access. The `dockerArg
 | Data gone after terminate | Pod volumes are deleted on terminate. Use `stop` to pause, or use `--network-volume` for persistent storage. |
 | Volume says "in use" | A network volume can only be mounted by one pod. Stop/terminate the other pod first. |
 | Checkpoint fills disk | Prune old checkpoints. LoRA adapters are small (~50MB) but full model saves are ~14GB per checkpoint for 7B. |
+| Network volume not available for GPU | Volume and GPU are in different data centers. Create a volume in the same region as your target GPU, or pick a GPU available in the volume's region. |
 | Can't decrease volume size | RunPod limitation — volumes can only grow, never shrink. See [sizing guide](#storage-sizing-50gb-vs-200gb-deep-dive). |
 | Cost unclear before launch | The script shows estimated cost and asks for confirmation. Use `gpus` to see all pricing. |
