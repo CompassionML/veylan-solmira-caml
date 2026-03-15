@@ -51,8 +51,8 @@ ENV/
 /outputs/
 
 # Keep structure but ignore large outputs
-experiments/linear-probes/outputs/activations/*
-!experiments/linear-probes/outputs/activations/.gitkeep
+experiments/linear-probes/outputs/activations/
+experiments/linear-probes/outputs/v7-runpod/activations/
 experiments/linear-probes/outputs/probes/*
 !experiments/linear-probes/outputs/probes/.gitkeep
 
@@ -63,12 +63,16 @@ Thumbs.db
 # Credentials (should never be in repo, but just in case)
 .env
 .env.*
+!.env.example
 *.secret
 secure/
 
 # Logs
 *.log
 logs/
+
+# HuggingFace local cache
+huggingface/
 
 # Papers (copyright - keep README only)
 papers/*.pdf

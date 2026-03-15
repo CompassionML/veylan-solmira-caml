@@ -1,7 +1,7 @@
 # StrongCompute Quick Connection Guide
 
-**Account:** veylan.solmira@gmail.com
-**Container:** veylan-initial-2026-01-03 (50GB, based on NewestCaML)
+**Account:** your.email@example.com
+**Container:** your-container-name (50GB)
 **Cluster:** Sydney Compute Cluster
 
 ---
@@ -76,7 +76,7 @@ Single script for all connection needs.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SSH_KEY` | Path to SSH private key | `~/Desktop/ai_dev/caml/secure/caml` |
+| `SSH_KEY` | Path to SSH private key | `~/.ssh/strongcompute` or `$CAML_SSH_KEY` |
 | `SKIP_VPN` | Set to `1` to skip VPN check | `0` |
 
 ### Examples

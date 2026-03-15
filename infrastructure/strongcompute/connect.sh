@@ -12,13 +12,14 @@
 #   ./connect.sh 192.168.127.170 47180 --vscode
 #
 # Environment variables:
-#   SSH_KEY     - Path to SSH private key (default: ~/Desktop/ai_dev/caml/secure/caml)
+#   SSH_KEY     - Path to SSH private key (default: ~/.ssh/strongcompute or $CAML_SSH_KEY)
 #   SKIP_VPN    - Set to 1 to skip VPN check
 
 set -e
 
 # Configuration
-SSH_KEY="${SSH_KEY:-/Users/infinitespire/Desktop/ai_dev/caml/secure/caml}"
+# Use CAML_SSH_KEY if set, otherwise fall back to default location
+SSH_KEY="${SSH_KEY:-${CAML_SSH_KEY:-$HOME/.ssh/strongcompute}}"
 SSH_CONFIG="$HOME/.ssh/config"
 VPN_GATEWAY="192.168.127.1"
 
@@ -59,7 +60,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help        Show this help"
             echo ""
             echo "Environment:"
-            echo "  SSH_KEY       Path to SSH key (default: ~/Desktop/ai_dev/caml/secure/caml)"
+            echo "  SSH_KEY       Path to SSH key (default: ~/.ssh/strongcompute or \$CAML_SSH_KEY)"
             echo "  SKIP_VPN      Set to 1 to skip VPN check"
             exit 0
             ;;

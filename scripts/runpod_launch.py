@@ -491,7 +491,14 @@ def main():
             }
             if args.network_volume:
                 info["network_volume"] = args.network_volume
-            info_path = Path(__file__).parent.parent / "secure" / "runpod_current.json"
+
+            # Use config for secure path, with fallback
+            try:
+                from config import RUNPOD_CONFIG_PATH
+                info_path = RUNPOD_CONFIG_PATH
+            except ImportError:
+                info_path = Path(os.environ.get("CAML_SECURE", Path(__file__).parent.parent / "secure")) / "runpod_current.json"
+
             info_path.parent.mkdir(exist_ok=True)
             with open(info_path, "w") as f:
                 json.dump(info, f, indent=2)

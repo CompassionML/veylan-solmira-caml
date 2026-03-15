@@ -2,7 +2,7 @@
 
 Project-specific guide connecting linear probe methodology to CaML's compassion measurement work.
 
-**General reference**: See `/Users/infinitespire/Desktop/ai_dev/docs/linear-probes-reference.md` for foundational concepts.
+**General reference**: See the linear probes methodology literature for foundational concepts.
 
 ---
 
@@ -635,7 +635,7 @@ The FIG codebase patterns (activation extraction, batching, storage) transfer di
 
 **Reference code**:
 - FIG activation extraction: `veylan-solmira-fig/experiments/metacognition-persona-drift/`
-- Generic probes guide: `/Users/infinitespire/Desktop/ai_dev/docs/linear-probes-reference.md`
+- Generic probes guide: See linear probes methodology literature
 
 **Datasets**:
 - AHB: Contact CaML team for access

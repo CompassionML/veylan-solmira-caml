@@ -56,7 +56,7 @@ See [full guide](runpod-guide.md#storage-sizing-50gb-vs-200gb-deep-dive) for the
 After the pod starts, copy the **SSH over exposed TCP** command (the second SSH link, direct IP + port). Give it to Claude Code and it can work on the pod remotely.
 
 ```
-ssh root@216.81.151.3 -p 12411 -i ~/.ssh/runpod_ed25519
+ssh root@<YOUR_POD_IP> -p <YOUR_PORT> -i ~/.ssh/runpod_ed25519
 ```
 
 ## Job mode (fire-and-forget)

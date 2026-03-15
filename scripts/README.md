@@ -19,7 +19,8 @@ Backs up models and datasets from `CompassioninMachineLearning` to `Backup-CaML`
 pip install huggingface_hub tqdm
 
 # Set your write token (NOT the read-only one)
-export HF_TOKEN=$(cat ~/Desktop/ai_dev/caml/secure/hf-caml-write)
+# Store your token in a secure location and reference via environment variable
+export HF_TOKEN=your_hf_write_token_here
 ```
 
 ### Usage

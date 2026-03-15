@@ -1,6 +1,6 @@
 # Container Environment Reference
 
-**Container:** veylan-initial-2026-01-03
+**Container:** your-container-name
 **Base Image:** NewestCaML
 **Disk Storage:** 50GB
 **Last verified:** 2026-02-14
@@ -121,4 +121,4 @@ Or via SSH config:
 ssh strongcompute
 ```
 
-SSH key: `/Users/infinitespire/Desktop/ai_dev/caml/secure/caml`
+SSH key: `~/.ssh/strongcompute` or `$CAML_SSH_KEY`

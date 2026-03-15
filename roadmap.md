@@ -510,10 +510,8 @@ CaML org has significant assets on HuggingFace (197 models, 96 datasets, ~2.9TB)
 
 **Resources:**
 - StrongCompute Discord: `isc-help` channel
-- Container: `caml-probes-2026-02` (custom image from `veylansolmira/caml-env`)
-- Legacy container: `veylan-initial-2026-01-03` (50GB, based on NewestCaML)
-- Cluster: Sydney Compute Cluster
-- Account: veylan.solmira@gmail.com
+- Container: Custom image from `veylansolmira/caml-env`
+- Cluster: Sydney Compute Cluster (or RunPod for flexible GPU access)
 - Default model: `meta-llama/Llama-3.1-8B-Instruct`
 
 ---

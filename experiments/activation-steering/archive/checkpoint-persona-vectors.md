@@ -113,7 +113,7 @@ mode = "robust"    # ~120 model calls, 90+ min, ~$8+
 ## How to Resume
 
 ```bash
-cd /Users/infinitespire/ai_dev/caml/caml-research
+cd /path/to/caml-research
 
 # Check git status
 git log --oneline

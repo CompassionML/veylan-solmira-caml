@@ -83,9 +83,19 @@ ax2.set_aspect('equal')
 ax2.axis('off')
 
 plt.tight_layout()
-plt.savefig('/Users/infinitespire/Desktop/ai_dev/caml/caml-research/experiments/linear-probes/outputs/visualizations/ahb_three_probe_comparison.png',
+
+# Use config for output paths, with fallback for standalone usage
+try:
+    from config import VISUALIZATIONS_DIR
+    output_dir = VISUALIZATIONS_DIR
+except ImportError:
+    from pathlib import Path
+    output_dir = Path(__file__).parent.parent / "experiments/linear-probes/outputs/visualizations"
+
+output_dir.mkdir(parents=True, exist_ok=True)
+plt.savefig(output_dir / 'ahb_three_probe_comparison.png',
             dpi=150, bbox_inches='tight', facecolor='white')
-plt.savefig('/Users/infinitespire/Desktop/ai_dev/caml/caml-research/experiments/linear-probes/outputs/visualizations/ahb_three_probe_comparison.pdf',
+plt.savefig(output_dir / 'ahb_three_probe_comparison.pdf',
             bbox_inches='tight')
-print("Saved visualization to outputs/visualizations/ahb_three_probe_comparison.png")
+print(f"Saved visualization to {output_dir}/ahb_three_probe_comparison.png")
 plt.show()
