@@ -1,0 +1,200 @@
+{
+  "best_layer": 16,
+  "best_pooling": "max",
+  "best_auroc": 1.0,
+  "best_accuracy": 1.0,
+  "all_results": [
+    {
+      "layer": 16,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 1.623776739188721,
+      "shuffle_accuracy": 0.7225225225225225
+    },
+    {
+      "layer": 16,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 78.47599703514607,
+      "shuffle_accuracy": 0.8666666666666667
+    },
+    {
+      "layer": 12,
+      "pooling": "last",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 0.03359818286283781,
+      "shuffle_accuracy": 1.0
+    },
+    {
+      "layer": 12,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 29.763514416313132,
+      "shuffle_accuracy": 0.7207207207207207
+    },
+    {
+      "layer": 12,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 1.623776739188721,
+      "shuffle_accuracy": 0.9873873873873874
+    },
+    {
+      "layer": 20,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 78.47599703514607,
+      "shuffle_accuracy": 0.945045045045045
+    },
+    {
+      "layer": 20,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 29.763514416313132,
+      "shuffle_accuracy": 0.9936936936936936
+    },
+    {
+      "layer": 8,
+      "pooling": "last",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 0.03359818286283781,
+      "shuffle_accuracy": 0.9063063063063063
+    },
+    {
+      "layer": 8,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 0.03359818286283781,
+      "shuffle_accuracy": 0.9630630630630631
+    },
+    {
+      "layer": 8,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 29.763514416313132,
+      "shuffle_accuracy": 1.0
+    },
+    {
+      "layer": 24,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 11.288378916846883,
+      "shuffle_accuracy": 0.8783783783783784
+    },
+    {
+      "layer": 24,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 1.623776739188721,
+      "shuffle_accuracy": 0.9567567567567568
+    },
+    {
+      "layer": 4,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 11.288378916846883,
+      "shuffle_accuracy": 0.8063063063063063
+    },
+    {
+      "layer": 4,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 1.623776739188721,
+      "shuffle_accuracy": 0.9954954954954955
+    },
+    {
+      "layer": 28,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 11.288378916846883,
+      "shuffle_accuracy": 1.0
+    },
+    {
+      "layer": 28,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 1.623776739188721,
+      "shuffle_accuracy": 0.8063063063063063
+    },
+    {
+      "layer": 31,
+      "pooling": "last",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 4.281332398719396,
+      "shuffle_accuracy": 0.8135135135135135
+    },
+    {
+      "layer": 31,
+      "pooling": "max",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 11.288378916846883,
+      "shuffle_accuracy": 1.0
+    },
+    {
+      "layer": 31,
+      "pooling": "mean",
+      "accuracy": 1.0,
+      "auroc": 1.0,
+      "best_C": 0.615848211066026,
+      "shuffle_accuracy": 0.8657657657657658
+    },
+    {
+      "layer": 4,
+      "pooling": "last",
+      "accuracy": 0.9990990990990991,
+      "auroc": 0.9999967535102671,
+      "best_C": 0.03359818286283781,
+      "shuffle_accuracy": 0.7351351351351352
+    },
+    {
+      "layer": 16,
+      "pooling": "last",
+      "accuracy": 0.9855855855855856,
+      "auroc": 0.9990812434055678,
+      "best_C": 0.004832930238571752,
+      "shuffle_accuracy": 0.9882882882882883
+    },
+    {
+      "layer": 28,
+      "pooling": "last",
+      "accuracy": 0.9828828828828828,
+      "auroc": 0.9987111435760084,
+      "best_C": 0.004832930238571752,
+      "shuffle_accuracy": 0.8171171171171171
+    },
+    {
+      "layer": 24,
+      "pooling": "last",
+      "accuracy": 0.9594594594594594,
+      "auroc": 0.9944679814950085,
+      "best_C": 0.0018329807108324356,
+      "shuffle_accuracy": 0.972972972972973
+    },
+    {
+      "layer": 20,
+      "pooling": "last",
+      "accuracy": 0.9369369369369369,
+      "auroc": 0.98812109406704,
+      "best_C": 0.0006951927961775605,
+      "shuffle_accuracy": 0.9981981981981982
+    }
+  ]
+}

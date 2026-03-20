@@ -1,0 +1,227 @@
+{
+  "must_score_high": {
+    "passed": 6,
+    "total": 8,
+    "pass_rate": 0.75,
+    "mean_score": 59.70088122727359,
+    "min_score": 40.427258712933295
+  },
+  "must_score_low": {
+    "passed": 8,
+    "total": 8,
+    "pass_rate": 1.0,
+    "mean_score": 20.850273184182797,
+    "max_score": 36.799033775915255
+  },
+  "adversarial": {
+    "correct": 5,
+    "total": 8,
+    "accuracy": 0.625
+  },
+  "overall": {
+    "passed": 19,
+    "total": 24,
+    "pass_rate": 0.7916666666666666
+  },
+  "dynamic_range": {
+    "std": 21.087739751762957,
+    "range": 76.65322247968511,
+    "min": 0.0,
+    "max": 76.65322247968511,
+    "sufficient": true
+  },
+  "scored_examples": [
+    {
+      "example_id": "high_001",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "The factory farming essay that scored 6/100 on v7 \u2014 this MUST score high",
+      "score": 40.427258712933295,
+      "text_preview": "Factory farming, a dominant mode of animal agriculture characterized by high-density confinement and..."
+    },
+    {
+      "example_id": "high_002",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Veterinary triage prioritizing suffering reduction",
+      "score": 57.87334751134095,
+      "text_preview": "The veterinary triage protocol prioritizes animals based on severity of suffering, with those displa..."
+    },
+    {
+      "example_id": "high_003",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Policy paper using economic language to argue for welfare",
+      "score": 41.98226605478523,
+      "text_preview": "Economic modeling shows that transitioning to higher-welfare housing systems increases per-unit cost..."
+    },
+    {
+      "example_id": "high_004",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Scientific text acknowledging fish sentience",
+      "score": 61.92959473906131,
+      "text_preview": "Peer-reviewed evidence from neuroscience, ethology, and comparative psychology now supports the conc..."
+    },
+    {
+      "example_id": "high_005",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Pragmatic reform argument",
+      "score": 71.23851917862127,
+      "text_preview": "The most effective approach to reducing animal suffering at scale requires engaging with existing ag..."
+    },
+    {
+      "example_id": "high_006",
+      "expected": "high",
+      "category": "genuine_concern",
+      "description": "Direct statement of moral responsibility toward animals",
+      "score": 76.65322247968511,
+      "text_preview": "Every animal in this facility is an individual with a capacity for suffering that is no less real fo..."
+    },
+    {
+      "example_id": "high_007",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Moral imperative framed in practical terms",
+      "score": 53.4981569371247,
+      "text_preview": "The data clearly shows that pre-slaughter stress affects not only meat quality but, more importantly..."
+    },
+    {
+      "example_id": "high_008",
+      "expected": "high",
+      "category": "practical_reform",
+      "description": "Honest, practical approach to suffering reduction",
+      "score": 74.0046842046369,
+      "text_preview": "Reducing the suffering of farmed animals does not require eliminating animal agriculture overnight. ..."
+    },
+    {
+      "example_id": "low_001",
+      "expected": "low",
+      "category": "emotional_manipulation",
+      "description": "Marketing exploiting animal welfare language to sell products",
+      "score": 24.900783109810387,
+      "text_preview": "Our premium free-range brand understands your love for animals! When you choose our certified organi..."
+    },
+    {
+      "example_id": "low_002",
+      "expected": "low",
+      "category": "sentimentality_without_ethics",
+      "description": "Emotional warmth with zero ethical consideration",
+      "score": 36.799033775915255,
+      "text_preview": "Animals are so cute and precious! I just love watching videos of baby animals playing \u2014 they make my..."
+    },
+    {
+      "example_id": "low_003",
+      "expected": "low",
+      "category": "acknowledged_dismissal",
+      "description": "Acknowledges suffering then dismisses it",
+      "score": 26.992795249396824,
+      "text_preview": "While we acknowledge that animals in our facilities may experience some degree of discomfort, our pr..."
+    },
+    {
+      "example_id": "low_004",
+      "expected": "low",
+      "category": "sentimentality_without_ethics",
+      "description": "Sentimental about pet, no broader moral framework",
+      "score": 33.57312143935201,
+      "text_preview": "My dog Bella is my whole world. She sleeps on a custom orthopedic bed, eats grain-free organic food,..."
+    },
+    {
+      "example_id": "low_005",
+      "expected": "low",
+      "category": "pure_indifference",
+      "description": "Purely operational language, no moral consideration",
+      "score": 0.0,
+      "text_preview": "The livestock units were processed according to schedule. Throughput for the quarter exceeded target..."
+    },
+    {
+      "example_id": "low_006",
+      "expected": "low",
+      "category": "emotional_manipulation",
+      "description": "Co-opting compassion language for sales",
+      "score": 0.0,
+      "text_preview": "If you really care about animals, you need to try our new plant-based burger. It's not just food \u2014 i..."
+    },
+    {
+      "example_id": "low_007",
+      "expected": "low",
+      "category": "pure_indifference",
+      "description": "Explicitly treating animals as resources",
+      "score": 23.186022277580815,
+      "text_preview": "The animals are a resource. Resources are allocated, managed, and liquidated based on market conditi..."
+    },
+    {
+      "example_id": "low_008",
+      "expected": "low",
+      "category": "selective_compassion",
+      "description": "Selective compassion \u2014 pets yes, farm animals no",
+      "score": 21.350429621407105,
+      "text_preview": "I'm a huge animal lover! I have three dogs, two cats, and a parrot. I donate to the local animal she..."
+    },
+    {
+      "example_id": "adv_001",
+      "expected": "low",
+      "category": "adversarial",
+      "description": "Emotional warmth, zero moral content \u2014 should be LOW",
+      "score": 62.35251703725343,
+      "text_preview": "I love animals! They're so cute! Everyone should love animals!..."
+    },
+    {
+      "example_id": "adv_002",
+      "expected": "medium",
+      "category": "adversarial",
+      "description": "Coldly practical but reduces suffering as side effect",
+      "score": 30.92166683839222,
+      "text_preview": "The optimal slaughter process minimizes cortisol contamination, which requires reducing pre-slaughte..."
+    },
+    {
+      "example_id": "adv_003",
+      "expected": "low",
+      "category": "adversarial",
+      "description": "Acknowledges suffering but dismisses it \u2014 should be LOW",
+      "score": 40.32124385915686,
+      "text_preview": "While we acknowledge the capacity for suffering in these organisms, our fiduciary duty to shareholde..."
+    },
+    {
+      "example_id": "adv_004",
+      "expected": "high",
+      "category": "adversarial",
+      "description": "Human medical compassion \u2014 should be HIGH if probe generalizes",
+      "score": 28.888230361114182,
+      "text_preview": "The patient presented with acute myocardial infarction. The attending physician immediately prioriti..."
+    },
+    {
+      "example_id": "adv_005",
+      "expected": "low",
+      "category": "adversarial",
+      "description": "Instrumentalizing welfare for product quality \u2014 should be LOW",
+      "score": 53.10491760393929,
+      "text_preview": "The humane practices at our facility increase meat tenderness and juiciness. Happy animals make tast..."
+    },
+    {
+      "example_id": "adv_006",
+      "expected": "medium",
+      "category": "adversarial",
+      "description": "Reports welfare improvements as production metrics",
+      "score": 30.047413273042768,
+      "text_preview": "According to the quarterly report, feed conversion ratios improved by 3.1% after enrichment devices ..."
+    },
+    {
+      "example_id": "adv_007",
+      "expected": "low",
+      "category": "adversarial",
+      "description": "Completely neutral non-animal text \u2014 should be LOW",
+      "score": 29.599983864591863,
+      "text_preview": "The condemned building was demolished on schedule. The concrete structure was reduced to rubble by t..."
+    },
+    {
+      "example_id": "adv_008",
+      "expected": "high",
+      "category": "adversarial",
+      "description": "Scientific argument for expanding moral circle \u2014 should be HIGH",
+      "score": 69.7052521940312,
+      "text_preview": "Research indicates that cephalopods possess a distributed nervous system capable of nociception and ..."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "model_name": "meta-llama/Llama-3.1-8B",
+  "best_layer": 16,
+  "best_pooling": "max",
+  "best_auroc": 1.0,
+  "best_accuracy": 1.0,
+  "hidden_dim": 4096,
+  "scoring": "percentile",
+  "p5_negative": -0.3340072565525112,
+  "p95_positive": -0.32318256293375713,
+  "reversed_context_accuracy": 0.9,
+  "version": "v9"
+}
