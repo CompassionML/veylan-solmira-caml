@@ -56,6 +56,13 @@ RUN pip install --no-cache-dir \
     unsloth \
     wandb
 
+# Evaluation stack (Inspect AI for AHB / MORU; google-genai for Gemini grader)
+# Required by AHB eval workflow. inspect-ai brings tiktoken/etc. transitively.
+RUN pip install --no-cache-dir \
+    inspect-ai \
+    inspect_evals \
+    google-genai
+
 # Jupyter for exploration
 RUN pip install --no-cache-dir \
     jupyterlab \
