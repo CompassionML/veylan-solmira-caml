@@ -48,6 +48,14 @@ RUN pip install --no-cache-dir \
     seaborn \
     plotly
 
+# Fine-tuning stack (Unsloth + LoRA + DPO/SFT trainers)
+# Required by experiments/cai-1b-replication/train_universal.py and similar.
+# Unsloth transitively installs peft, trl, bitsandbytes, and pins compatible
+# transformers/accelerate/torch versions.
+RUN pip install --no-cache-dir \
+    unsloth \
+    wandb
+
 # Jupyter for exploration
 RUN pip install --no-cache-dir \
     jupyterlab \

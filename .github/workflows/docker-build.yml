@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'strongcompute/docker/**'
+      - 'infrastructure/docker/**'
   workflow_dispatch:  # Manual trigger
 
 env:
@@ -51,8 +51,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./strongcompute/docker
-          file: ./strongcompute/docker/Dockerfile
+          context: ./infrastructure/docker
+          file: ./infrastructure/docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
