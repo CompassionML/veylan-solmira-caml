@@ -25,6 +25,12 @@ PDFs in this folder are gitignored (copyright). Download links below.
 | Self-fulfilling Alignment for Animal Compassion | Draft | CaML alignment approach |
 | Animal Harm Benchmark | TBD | AHB methodology |
 
+## Constitutional AI
+
+| Paper | Link | Notes |
+|-------|------|-------|
+| Constitution or Collapse? Exploring Constitutional AI with Llama 3-8B (Zhang 2025) | [arXiv 2504.04918](https://arxiv.org/abs/2504.04918) | Local: `constitution-or-collapse-cai-llama3-8b.pdf` + `.md`. Single-author Stanford preprint (xuezhang68@stanford.edu). Replicates CAI on Llama 3-8B; finds model collapse traced to emoji-repetition in Stage-1 SFT data. **No model/code released.** Direct precedent for CaML constitution-vs-midtraining paper. |
+
 ---
 
 ## Local Setup

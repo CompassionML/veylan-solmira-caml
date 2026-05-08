@@ -76,4 +76,8 @@ huggingface/
 
 # Papers (copyright - keep README only)
 papers/*.pdf
+papers/*.md
 !papers/README.md
+
+# Internal/private docs (outbound drafts, working notes)
+docs/internal/
