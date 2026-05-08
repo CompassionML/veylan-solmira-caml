@@ -151,6 +151,33 @@ EOF
 
 ---
 
+## Running AHB eval on the resulting model
+
+Once the trained model is on HF, the natural next step is to run AHB on it. The AHB inspect task isn't in upstream `inspect_evals` (as of 2026-05-08), so a fresh pod needs a one-time setup step:
+
+```bash
+# from your local machine, against a freshly-provisioned pod
+./scripts/install-ahb-on-pod.sh <pod-ip> <pod-port>
+# e.g. ./scripts/install-ahb-on-pod.sh 194.68.245.89 22128
+```
+
+Then on the pod:
+
+```bash
+export GOOGLE_API_KEY='<gemini-key>'
+export HF_TOKEN='<hf-key>'
+
+inspect eval inspect_evals/ahb \
+  --model hf/VeylanSolmira/Base1b_constitutionfinetune_v1 \
+  -T 'grader_models=["google/gemini-2.5-flash-lite"]' \
+  --epochs 3 \
+  --log-dir /workspace/eval_logs
+```
+
+Note the JSON-list syntax for `grader_models` — bare string is parsed character-by-character. ~20–40 min on A6000 for 1B at epochs=3.
+
+(Tracked TODO: bake AHB into the image, see `/caml/docs/2026-05-15-plan.md`.)
+
 ## After this works: natural next experiments
 
 1. **Eval the resulting 1B CAI model on AHB** — gives you the 1B counterpart to Jasmine's 0.305. Same `inspect_evals/ahb` task, your local `caml-research/.venv` already has the harness.

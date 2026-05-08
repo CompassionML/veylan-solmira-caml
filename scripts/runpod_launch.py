@@ -286,6 +286,20 @@ def stop_pod(pod_id: str):
     return result
 
 
+def resume_pod(pod_id: str, gpu_count: int = 1):
+    """Resume a stopped (EXITED) pod. Reuses the original GPU type."""
+    query = f"""
+    mutation {{
+        podResume(input: {{podId: "{pod_id}", gpuCount: {gpu_count}}}) {{
+            id
+            desiredStatus
+        }}
+    }}
+    """
+    result = graphql_request(query)
+    return result
+
+
 def terminate_pod(pod_id: str):
     """Terminate (delete) a pod."""
     query = f"""
@@ -337,9 +351,10 @@ def main():
   %(prog)s launch --image myimg:latest --ssh-key ~/.ssh/id_ed25519 --cmd "python train.py"
   %(prog)s list --ssh-key ~/.ssh/id_ed25519
   %(prog)s stop --pod-id abc123
+  %(prog)s resume --pod-id abc123 --ssh-key ~/.ssh/id_ed25519
   %(prog)s terminate --pod-id abc123
 """)
-    parser.add_argument("action", choices=["launch", "status", "list", "stop", "terminate", "gpus", "balance", "volumes"],
+    parser.add_argument("action", choices=["launch", "status", "list", "stop", "resume", "terminate", "gpus", "balance", "volumes"],
                        help="Action to perform")
     parser.add_argument("--pod-id", help="Pod ID for status/stop/terminate actions")
     parser.add_argument("--image", help="Docker image to use (required for launch)")
@@ -517,6 +532,27 @@ def main():
             sys.exit(1)
         result = stop_pod(args.pod_id)
         print(f"Pod stopped: {result}")
+
+    elif args.action == "resume":
+        if not args.pod_id:
+            print("--pod-id required for resume")
+            sys.exit(1)
+        result = resume_pod(args.pod_id, gpu_count=args.gpu_count)
+        if result.get("errors"):
+            print(f"Resume failed: {result['errors']}")
+            sys.exit(1)
+        print(f"Pod resume requested: {result['data']['podResume']}")
+        # Wait for SSH and print connection details (matches launch behavior)
+        if args.ssh_key:
+            status = wait_for_pod(args.pod_id)
+            if status:
+                ssh_cmd = get_ssh_command(status, args.ssh_key)
+                print()
+                print("=" * 60)
+                print("Pod resumed!")
+                if ssh_cmd:
+                    print(f"SSH: {ssh_cmd}")
+                print("=" * 60)
 
     elif args.action == "terminate":
         if not args.pod_id:
