@@ -145,7 +145,7 @@ A ready-to-use Dockerfile is available at `docker/Dockerfile`:
 
 **Build and push:**
 ```bash
-cd strongcompute/docker
+cd infrastructure/docker
 
 # Build locally
 ./build.sh

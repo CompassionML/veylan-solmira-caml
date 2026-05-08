@@ -451,9 +451,9 @@ The probe captures **recognition of animal sentience** but not **moral sophistic
 
 ### 0.2 Custom Container Image
 - [x] Build modern Python 3.12 + CUDA 12.8 image
-  - [x] Created `strongcompute/docker/Dockerfile`
-  - [x] Created `strongcompute/docker/requirements.txt`
-  - [x] Created `strongcompute/docker/build.sh`
+  - [x] Created `infrastructure/docker/Dockerfile`
+  - [x] Created `infrastructure/docker/requirements.txt`
+  - [x] Created `infrastructure/docker/build.sh`
   - [x] Set up GitHub Actions workflow (`.github/workflows/docker-build.yml`)
   - [x] Built image via GitHub Actions (amd64 native)
   - [x] Pushed to DockerHub (`veylansolmira/caml-env:latest`)

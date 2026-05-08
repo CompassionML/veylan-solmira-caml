@@ -38,8 +38,8 @@ jobs:
         run: |
           gh release download ${{ github.event.inputs.flash_attn_version }} \
             --pattern "flash-attn-*.tar.gz" \
-            --dir ./strongcompute/docker/
-          ls -lh ./strongcompute/docker/flash-attn-*.tar.gz
+            --dir ./infrastructure/docker/
+          ls -lh ./infrastructure/docker/flash-attn-*.tar.gz
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,8 +63,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./strongcompute/docker
-          file: ./strongcompute/docker/Dockerfile.base
+          context: ./infrastructure/docker
+          file: ./infrastructure/docker/Dockerfile.base
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
