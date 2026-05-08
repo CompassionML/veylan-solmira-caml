@@ -15,6 +15,10 @@ rich>=13.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 
+# Evaluation
+inspect-ai>=0.3.219
+inspect_evals>=0.1.0
+
 # ML core (available on StrongCompute - uncomment for local dev)
 # torch>=2.0.0              # PyTorch for probe training
 # numpy>=1.24.0             # Array operations
